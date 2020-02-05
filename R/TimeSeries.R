@@ -58,6 +58,61 @@ price_to_ret <- function(x) {
 }
 
 
+#' @importFrom lubridate ceiling_date
 change_freq <- function(x, period = 'months', dtype = c('return', 'price')) {
 
+  dtype <- tolower(dtype[1])
+  if (dtype == 'return') {
+    price <- ret_to_price(x)
+  } else {
+    price <- x
+  }
+  eo <- endpoints(price, on = period)
+  price_new_freq <- price[eo, ]
+  if (dtype == 'return') {
+    data_out <- price_to_ret(price_new_freq)
+  } else {
+    data_out <- price_new_freq
+  }
+  if (tolower(period) %in% c('months', 'quarters', 'years')) {
+    zoo::index(data_out) <- lubridate::ceiling_date(zoo::index(data_out),
+                                                    'months') - 1
+  }
+  return(data_out)
+}
+
+
+excess_ret <- function(x, rf, period = NULL) {
+  
+  if (!is.null(period)) {
+    x <- change_freq(x, period)
+    rf <- change_freq(rf, period)
+  }
+  join <- merge.xts(x, rf, fill = 0, join = 'left')
+  rf_join <- join[, ncol(join), drop = TRUE]
+  exc_ret <- apply(x, 2, function(a, b) {a - b}, b = rf_join)
+  xts(exc_ret, zoo::index(x))
+}
+
+
+change_freq_na <- function(x, period, dtype) {
+  
+  apply(x, 2, .change_vec_na, period = period, dtype = dtype)
+}
+
+.change_vec_na <- function(x, period, dtype) {
+  
+  first_obs <- min(which(!is.na(x)))
+  if (first_obs == 1) {
+    return(change_freq(x, period, dtype))
+  }
+  if (dtype == 'return') {
+    x_fill <- .na_ret(x)
+  } else {
+    x_fill <- .na_price(x)
+  }
+  change_freq(x_fill, period, dtype)
+  x_out <- x_fill
+  x_out[1:(first_obs - 1), ] <- NA
+  return(x_out)
 }
