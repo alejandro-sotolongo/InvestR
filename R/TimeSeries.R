@@ -241,3 +241,14 @@ combine_xts <- function(..., period = NULL, dtype = c('return', 'price'),
 }
 
 
+#' @export
+trunc_xts <- function(x, date_start = NULL, date_end = NULL) {
+  
+  if (!is.null(date_start)) {
+    x <- x[paste0(date_start, '/')]
+  }
+  if (!is.null(date_end)) {
+    x <- x[paste0('/', date_end)]
+  }
+  return(x)
+}
