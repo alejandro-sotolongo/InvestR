@@ -44,7 +44,7 @@ vol <- function(x, use_busday = TRUE, period = NULL) {
 
 #' @export
 pca_hclust <- function(cor_mat) {
-  
+
   p <- princomp(covmat = cor_mat)
   meas <- diag(sqrt(p$sdev^2)) %*% t(p$loadings[,])
   dist_res <- dist(t(meas), method = 'euclidean')
@@ -54,7 +54,7 @@ pca_hclust <- function(cor_mat) {
 
 #' @export
 risk_cluster_wgt <- function(hc, vol, k = 2) {
-  
+
   n_assets <- max(hc$order)
   memb <- cutree(hc, k)
   xcor <- diag(1, n_assets, n_assets)
@@ -65,6 +65,24 @@ risk_cluster_wgt <- function(hc, vol, k = 2) {
   xcov <- vol %*% t(vol) * xcor
   mu_vec <- vol * .25
   cov_inv <- MASS::ginv(xcov)
-  wgt <- (cov_inv %*% mu_vec) / (matrix(1, ncol = 16, nrow = 1) %*% cov_inv %*% mu_vec)[1] 
-  return(data.frame(wgt, memb))
+  (cov_inv %*% mu_vec) /
+    (matrix(1, ncol = length(hc$order), nrow = 1) %*% cov_inv %*% mu_vec)[1]
+}
+
+
+#' @export
+drawdown <- function(x) {
+
+  x <- na.omit(x)
+  dd <- apply(x, 2, .drawdown_calc)
+  .return_xts(dd)
+}
+
+
+#' @export
+.drawdown_calc <- function(x) {
+
+  wi <- cumprod(x + 1)
+  wi_peak <- cummax(wi)
+  wi / wi_peak - 1
 }

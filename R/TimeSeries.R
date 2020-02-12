@@ -243,7 +243,7 @@ combine_xts <- function(..., period = NULL, dtype = c('return', 'price'),
 
 #' @export
 trunc_xts <- function(x, date_start = NULL, date_end = NULL) {
-  
+
   if (!is.null(date_start)) {
     x <- x[paste0(date_start, '/')]
   }
@@ -251,4 +251,16 @@ trunc_xts <- function(x, date_start = NULL, date_end = NULL) {
     x <- x[paste0('/', date_end)]
   }
   return(x)
+}
+
+
+#' @export
+xts_to_dataframe <- function(x) {
+
+  date_vec <- zoo::index(x, origin = '1970-01-01')
+  df <- data.frame(Date = as.Date(date_vec), x, row.names = NULL)
+  if (!is.null(colnames(x))) {
+    colnames(df)[2:ncol(df)] <- colnames(x)
+  }
+  return(df)
 }
