@@ -21,7 +21,7 @@ Portfolio <- R6::R6Class(
     
     initialize = function(sec_xts = ...,
                           sec_tick = NULL,
-                          sec_comm_period = 'days',
+                          sec_comm_period = NULL,
                           sec_meta = NULL,
                           use_blank_meta = TRUE,
                           run_load_meta = FALSE,
@@ -32,7 +32,11 @@ Portfolio <- R6::R6Class(
                           date_end = NULL,
                           name = 'Port') {
 
-      ret <- combine_xts(sec_xts, period = sec_comm_period)
+      if (length(list(sec_xts)) == 1 & is.null(sec_comm_period)) {
+        ret <- sec_xts
+      } else {
+        ret <- combine_xts(sec_xts, period = sec_comm_period)
+      }
       self$sec_xts <- ret
       if (is.null(sec_tick)) {
         self$sec_tick <- colnames(ret)
@@ -129,7 +133,7 @@ Portfolio <- R6::R6Class(
       self$asset_index <- xts(asset_index, c(sec_dt[1] - 1, sec_dt))
       is_alloc <- hist_wgt[nrow(hist_wgt), ] != 0
       last_wgt <- data.frame(
-        Asset = self$sec_tick[is_alloc], 
+        Ticker = self$sec_tick[is_alloc], 
         Weight = as.numeric(hist_wgt[nrow(hist_wgt), is_alloc]))
       self$last_wgt <- last_wgt
     },
@@ -177,13 +181,33 @@ Portfolio <- R6::R6Class(
       (x * (cov_mat %*% x)) / (t(x) %*% cov_mat %*% x)[1]
     },
     
-    pca_hclust = function() {
+    pca_hclust = function(shrink_cor = TRUE) {
       
       cor_mat <- cor(self$sec_xts, use = 'pairwise.complete.obs')
+      if (shrink_cor) {
+        cor_mat <- corpcor::cor.shrink(cor_mat)
+      }
       p <- princomp(covmat = cor_mat)
       meas <- diag(sqrt(p$sdev^2)) %*% t(p$loadings[,])
       dist_res <- dist(t(meas), method = 'euclidean')
       hclust(dist_res)
+    },
+    
+    plot_wgt = function(wgt_type = c('capital', 'volatility', 'value.at.risk', 
+                                     'tracking.error'), 
+                        agg_by = c('ticker', 'asset.class', 'geography', 
+                                   'strategy'),
+                        plot_type = c('donut', 'pie', 'bar')) {
+      wgt_type <- tolower(wgt_type[1])
+      if (wgt_type == 'capital') {
+        wgt <- merge(self$sec_meta, self$last_wgt, all.x = TRUE)
+      }
+      if (agg_by) {
+        plotdat <- wgt[, c('Ticker', 'Weight')]
+      }
+      if (plot_type == 'donut') {
+           
+      }
     }
   )
 )
