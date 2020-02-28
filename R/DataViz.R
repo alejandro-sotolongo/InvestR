@@ -27,3 +27,28 @@ viz_perf <- function(x, period = NULL) {
   cowplot::plot_grid(g_wealth, g_return, g_drawdown, ncol = 1,
                      rel_heights = c(2, 1, 1.25), align = 'v')
 }
+
+viz_wgt <- function(..., input_list = FALSE) {
+
+  port_list <- list(...)
+  if (input_list) {
+    port_list <- port_list[[1]]
+  }
+  for (i in 1:length(port_list)) {
+    if (i == 1) {
+      wgt <- data.frame(
+        Ticker = port_list[[i]]$sec_tick,
+        Weight = port_list[[i]]$rebal_wgt
+      )
+    } else {
+      wgt <- merge(x = wgt,
+                   y = data.frame(Ticker = port_list[[i]]$sec_tick,
+                                  Weight = port_list[[i]]$rebal_wgt),
+                   all = TRUE,
+                   by = 'Ticker')
+    }
+  }
+  name_vec <- sapply(port_list, function(x) x$name)
+  colnames(wgt) <- c('Ticker', make.unique(name_vec))
+
+}

@@ -1,4 +1,4 @@
-#' @export 
+#' @export
 Portfolio <- R6::R6Class(
   classname = 'Portfolio',
   public = list(
@@ -18,10 +18,10 @@ Portfolio <- R6::R6Class(
     hist_wgt = NULL,
     last_wgt = NULL,
     bench = NULL,
-    
+
     initialize = function(sec_xts = ...,
                           sec_tick = NULL,
-                          sec_comm_period = 'days',
+                          sec_comm_period = NULL,
                           sec_meta = NULL,
                           use_blank_meta = TRUE,
                           run_load_meta = FALSE,
@@ -32,7 +32,11 @@ Portfolio <- R6::R6Class(
                           date_end = NULL,
                           name = 'Port') {
 
-      ret <- combine_xts(sec_xts, period = sec_comm_period)
+      if (length(list(sec_xts)) == 1 & is.null(sec_comm_period)) {
+        ret <- sec_xts
+      } else {
+        ret <- combine_xts(sec_xts, period = sec_comm_period)
+      }
       self$sec_xts <- ret
       if (is.null(sec_tick)) {
         self$sec_tick <- colnames(ret)
@@ -89,11 +93,11 @@ Portfolio <- R6::R6Class(
       self$rebal_wgt <- change_freq(reb_wgt, period = self$rebal_period,
                                   dtype = 'price')
     },
-    
+
     rebal = function() {
-      
+
       init_cap <- 100
-      n_obs <- nrow(self$sec_xts)  
+      n_obs <- nrow(self$sec_xts)
       n_assets <- ncol(self$sec_xts)
       if (is.null(nrow(self$rebal_wgt))) {
         self$auto_reb_wgt()
@@ -104,7 +108,7 @@ Portfolio <- R6::R6Class(
       asset_index <- matrix(0, nrow = n_obs + 1, ncol = n_assets)
       asset_index[1, ] <- init_cap * self$rebal_wgt[1, ]
       port_index <- matrix(0, nrow = n_obs + 1, ncol = 1)
-      port_index[1, 1] <- init_cap 
+      port_index[1, 1] <- init_cap
       rebal_dt <- zoo::index(self$rebal_wgt)
       sec_dt <- zoo::index(self$sec_xts)
       comm_start <- max(c(min(rebal_dt), min(sec_dt)))
@@ -129,18 +133,18 @@ Portfolio <- R6::R6Class(
       self$asset_index <- xts(asset_index, c(sec_dt[1] - 1, sec_dt))
       is_alloc <- hist_wgt[nrow(hist_wgt), ] != 0
       last_wgt <- data.frame(
-        Asset = self$sec_tick[is_alloc], 
+        Asset = self$sec_tick[is_alloc],
         Weight = as.numeric(hist_wgt[nrow(hist_wgt), is_alloc]))
       self$last_wgt <- last_wgt
     },
-    
+
     contr_to_ret = function(date_start = NULL, date_end = NULL) {
-      
+
       if (is.null(self$port_index)) {
         warning('the rebal function needs to be run first')
         return()
       }
-    
+
       if (!is.null(date_start)) {
         index_dt <- zoo::index(self$asset_index)
         dt_before_start <- which(index_dt < date_start)
@@ -148,7 +152,7 @@ Portfolio <- R6::R6Class(
       } else {
         index_dt_start <- NULL
       }
-      asset_index <- zoo::coredata(trunc_xts(self$asset_index, index_dt_start, 
+      asset_index <- zoo::coredata(trunc_xts(self$asset_index, index_dt_start,
                                              date_end))
       sec_mat <- zoo::coredata(trunc_xts(self$sec_xts, date_start, date_end))
       contr_mat <- asset_index[1:(nrow(asset_index) - 1), ] * sec_mat
@@ -161,9 +165,9 @@ Portfolio <- R6::R6Class(
       names(res) <- c(self$sec_tick, 'Resid.')
       return(res)
     },
-    
+
     contr_to_risk = function(date_start = NULL, date_end = NULL, cov_mat = NULL) {
-      
+
       if (is.null(cov_mat)) {
         cov_mat <- cov(trunc_xts(self$sec_xts), use = 'complete.obs')
       }
@@ -176,10 +180,13 @@ Portfolio <- R6::R6Class(
       }
       (x * (cov_mat %*% x)) / (t(x) %*% cov_mat %*% x)[1]
     },
-    
-    pca_hclust = function() {
-      
+
+    pca_hclust = function(shrink = TRUE) {
+
       cor_mat <- cor(self$sec_xts, use = 'pairwise.complete.obs')
+      if (shrink) {
+        cor_mat <- corpcor::cor.shrink(cor_mat)
+      }
       p <- princomp(covmat = cor_mat)
       meas <- diag(sqrt(p$sdev^2)) %*% t(p$loadings[,])
       dist_res <- dist(t(meas), method = 'euclidean')
