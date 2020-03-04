@@ -134,6 +134,7 @@ Portfolio <- R6::R6Class(
       is_alloc <- hist_wgt[nrow(hist_wgt), ] != 0
       last_wgt <- data.frame(
         Asset = self$sec_tick[is_alloc],
+        Ticker = self$sec_tick[is_alloc],
         Weight = as.numeric(hist_wgt[nrow(hist_wgt), is_alloc]))
       self$last_wgt <- last_wgt
     },
@@ -181,16 +182,56 @@ Portfolio <- R6::R6Class(
       (x * (cov_mat %*% x)) / (t(x) %*% cov_mat %*% x)[1]
     },
 
-    pca_hclust = function(shrink = TRUE) {
+    pca_hclust = function(shrink_cor = TRUE) {
 
       cor_mat <- cor(self$sec_xts, use = 'pairwise.complete.obs')
-      if (shrink) {
+      if (shrink_cor) {
         cor_mat <- corpcor::cor.shrink(cor_mat)
       }
       p <- princomp(covmat = cor_mat)
       meas <- diag(sqrt(p$sdev^2)) %*% t(p$loadings[,])
       dist_res <- dist(t(meas), method = 'euclidean')
       hclust(dist_res)
+    },
+
+    plot_wgt = function(wgt_type = c('capital', 'volatility', 'value.at.risk',
+                                     'tracking.error'),
+                        agg_by = c('ticker', 'asset.class', 'geography',
+                                   'strategy'),
+                        plot_type = c('donut', 'pie', 'bar')) {
+
+      # need warning message for NA's being dropped in split
+      # need warning message for negative values in pie and donut charts
+      wgt_type <- tolower(wgt_type[1])
+      agg_by <- tolower(agg_by[1])
+      if (wgt_type == 'capital') {
+        wgt <- merge(self$sec_meta, self$last_wgt, all.x = TRUE)
+      }
+      if (agg_by == 'asset.class') {
+        wgt_split <- split(wgt, wgt$AssetClass)
+        wgt_vec <- sapply(wgt_split, function(x) sum(x$Weight))
+        plotdat <- data.frame(cat = names(wgt_vec), weight = as.numeric(wgt_vec))
+      } else if (agg_by == 'ticker') {
+        plotdat <- data.frame(cat = wgt$Ticker, weight = wgt$Weight)
+      }
+      if (plot_type == 'donut' | plot_type == 'pie') {
+        plotdat$ymax <- cumsum(plotdat$weight)
+        plotdat$ymin <- c(0, head(plotdat$ymax, n = -1))
+        plotdat$label_pos <- (plotdat$ymax + plotdat$ymin) / 2
+        plotdat$label <- paste0(plotdat$cat, '\n', f_percent(plotdat$weight, 1))
+        gplot <- ggplot(plotdat, aes(ymax = ymax, ymin = ymin, xmax = 4, xmin = 3,
+                            fill = cat, label = label)) +
+          geom_rect() +
+          ggrepel::geom_label_repel(x = 3.5, aes(y = label_pos), size = 3) +
+          coord_polar(theta = "y") +
+          labs(fill = '') +
+          theme_void() +
+          theme(legend.position = 'none')
+      }
+      if (plot_type == 'pie') {
+        gplot <- gplot + xlim(c(2, 4))
+
+      }
     }
   )
 )

@@ -1,4 +1,3 @@
-
 #' @export
 download_tiingo <- function(ticker, t_api, try_mode = TRUE) {
 
