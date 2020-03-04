@@ -116,6 +116,10 @@ roll_turb <- function(ret, roll_win = 156, z_win_short = 5, z_win_long = 156) {
   rowSums(x %*% cov * x)
 }
 
+roll_forward_ret <- function(ret, roll_win) {
+
+}
+
 #' @export
 roll_absorp <- function(ret, n_pc = 2, roll_win = 156, lambda = NULL,
                         z_win_short = 5, z_win_long = 156) {
