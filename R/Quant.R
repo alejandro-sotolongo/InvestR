@@ -121,11 +121,11 @@ roll_forward_ret <- function(ret, roll_win) {
 }
 
 #' @export
-roll_absorp <- function(ret, n_pc = 2, roll_win = 156, lambda = NULL,
-                        z_win_short = 5, z_win_long = 156) {
+roll_absorp <- function(ret, n_pc = 2, roll_win = 504, lambda = NULL,
+                        z_win_short = 15, z_win_long = 252) {
   if (is.null(lambda)) {
     freq <- xts::periodicity(ret)
-    lambda <- 1 - 2 / (freq_to_scaler(freq$units))
+    lambda <- 1 - 2 / (roll_win + 1)
   }
   roll_ar_list <- slider::slide(ret, ~.calc_absorp_wrap(.x, lambda = lambda),
                                .complete = TRUE, .before = roll_win)
