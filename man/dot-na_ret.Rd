@@ -14,3 +14,8 @@
 \description{
 Fill missing returns in a vector
 }
+\examples{
+x <- 1:10
+x[3] <- NA
+fill_na(x, 0)
+}

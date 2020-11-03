@@ -18,7 +18,11 @@ fill_na_ret(x, rpl = 0)
 Fill missing values for a return time-series
 }
 \details{
-Missing values at the beginning of the time-series are presevered.
+Missing values at the beginning of the time-series are persevered.
 Only the missing values after a non-missing value are replaced. E.g., the
 series NA, NA, 1, 5, NA, 7 would be replaced with NA, NA, 1, 5, 0, 7.
+}
+\examples{
+fill_na_ret(x)
+fill_na_ret(x, median(x, TRUE))
 }

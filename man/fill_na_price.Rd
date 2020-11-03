@@ -18,3 +18,6 @@ Fill missing price values with previous non-missing value
 \note{
 see https://stackoverflow.com/questions/7735647/replacing-nas-with-latest-non-na-value
 }
+\examples{
+fill_na_price(x)
+}

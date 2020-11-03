@@ -20,8 +20,12 @@ busday(x, year_start = 1970, year_end = 2030)
 Subset time-series to business day only
 }
 \details{
-In order to find business days this function creates a calendary
-from timeDate's holidayNYSE calendary. The \code{year_start} and \code{year_end}
+In order to find business days this function creates a calendar
+from timeDate's holidayNYSE calendar. The \code{year_start} and \code{year_end}
 determine the length of the calendar which needs to be greater or equal to
 the \code{x} time-series.
+}
+\examples{
+busday(x, 1900, 2020)
+busday(x, year_end = 2050)
 }
