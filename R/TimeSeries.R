@@ -2,13 +2,16 @@
 #' @param x xts object
 #' @param year_start beginning year to create business days
 #' @param year_end ending year to create business days
-#' @details In order to find business days this function creates a calendary
-#' from timeDate's holidayNYSE calendary. The \code{year_start} and \code{year_end}
+#' @details In order to find business days this function creates a calendar
+#' from timeDate's holidayNYSE calendar. The \code{year_start} and \code{year_end}
 #' determine the length of the calendar which needs to be greater or equal to
 #' the \code{x} time-series.
 #' @return \code{x} with dates and corresponding values for business days
 #' @importFrom bizdays create.calendar is.bizday
 #' @export
+#' @examples
+#' busday(x, 1900, 2020)
+#' busday(x, year_end = 2050)
 busday <- function(x, year_start = 1970, year_end = 2030) {
 
   bizdays::create.calendar('cal',
@@ -35,10 +38,13 @@ busday <- function(x, year_start = 1970, year_end = 2030) {
 #' @param x xts with returns
 #' @param rpl value to replace missing values
 #' @return \code{x} with NAs replaced by \code{rpl}
-#' @details Missing values at the beginning of the time-series are presevered.
+#' @details Missing values at the beginning of the time-series are persevered.
 #' Only the missing values after a non-missing value are replaced. E.g., the
 #' series NA, NA, 1, 5, NA, 7 would be replaced with NA, NA, 1, 5, 0, 7.
 #' @export
+#' @examples 
+#' fill_na_ret(x)
+#' fill_na_ret(x, median(x, TRUE))
 fill_na_ret <- function(x, rpl = 0) {
   ret <- apply(x, 2, .na_ret, rpl = rpl)
   .return_xts(ret)
@@ -50,6 +56,8 @@ fill_na_ret <- function(x, rpl = 0) {
 #' @return \code{x} with missing values replaced by the previous non-missing value
 #' @note see https://stackoverflow.com/questions/7735647/replacing-nas-with-latest-non-na-value
 #' @export
+#' @examples 
+#' fill_na_price(x)
 fill_na_price <- function(x) {
   price <- apply(x, 2, .na_price)
   .return_xts(price)
@@ -59,6 +67,10 @@ fill_na_price <- function(x) {
 #' @title Fill missing returns in a vector
 #' @param x vector of returns
 #' @param rpl value to replace NA values
+#' @examples 
+#' x <- 1:10
+#' x[3] <- NA
+#' fill_na(x, 0)
 .na_ret <- function(x, rpl) {
 
   first_ret <- min(which(!is.na(x)))
@@ -160,6 +172,14 @@ excess_ret <- function(x, rf, period = NULL) {
 }
 
 
+#' @title Change frequency in time-series with missing values
+#' @param x xts object
+#' @param period character to represent desired frequency
+#' @param dtype character to specify if \code{x} is a 'return' or 'price' 
+#' time-series
+#' @note The missing values are filled with either \code{0} for returns and the
+#' most recent (i.e., lagged) non-missing value for prices.
+#' @return xts object with new \code{period} 
 #' @export
 change_freq_na <- function(x, period, dtype) {
 
@@ -192,6 +212,9 @@ change_freq_na <- function(x, period, dtype) {
 }
 
 
+#' @title Convert string frequency to numeric scale
+#' @param period string to represent frequency
+#' @return numeric scale
 #' @export
 freq_to_scaler <- function(period) {
 
@@ -205,6 +228,21 @@ freq_to_scaler <- function(period) {
 }
 
 
+#' @title Combine multiple xts objects into one xts object
+#' @param period optional string to specify a desired common frequency
+#' @param dtype string to specify if we are combining 'return' or 'price' 
+#' time-series
+#' @param use_busday boolean to strip time-series to business day only
+#' (NYSE calendar)
+#' @param comm_start boolean to truncate the combined time-series to the 
+#' latest inception of the individual xts objects
+#' @param comm_end boolean to truncate the combined time-series to the earliest
+#' ending date of the individual xts objects
+#' @param na_rpl boolean to replace missing values to \code{0} for returns and
+#' the lagged non-missing value for prices
+#' @param input_list boolean to specify if a list of xts objects are being 
+#' past, see vignette
+#' @return the combined xts object
 #' @export
 combine_xts <- function(..., period = NULL, dtype = c('return', 'price'),
                         use_busday = TRUE, comm_start = TRUE, comm_end = TRUE,
@@ -241,6 +279,10 @@ combine_xts <- function(..., period = NULL, dtype = c('return', 'price'),
 }
 
 
+#' @title Truncate xts object
+#' @param x xts object
+#' @param date_start first date to truncate
+#' @param date_end last date to truncate
 #' @export
 trunc_xts <- function(x, date_start = NULL, date_end = NULL) {
 

@@ -1,13 +1,13 @@
 Package: InvestR
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Collection of functions for quantitative investment analysis
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
+Author: Alex Sotolongo
+Maintainer: Alex Sotolongo <als1012@gmail.com>
 Description: More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true
 Depends: xts, zoo
-RoxygenNote: 7.0.2
+RoxygenNote: 7.1.1

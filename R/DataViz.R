@@ -12,9 +12,9 @@ viz_perf <- function(x, period = NULL) {
     xlab('') + ylab('') + labs(color = '', title = 'Cumulative Return')
   df <- xts_to_dataframe(x)
   plot_returns <- tidyr::pivot_longer(df, -Date)
-  g_return <- ggplot(plot_returns, aes(x = Date, y = value, color = name)) +
-    geom_line() +
-    xlab('') + ylab('') + labs(color = '', title = paste0('Period Returns')) +
+  g_return <- ggplot(plot_returns, aes(x = Date, y = value, fill = name)) +
+    geom_bar(stat = 'identity', position = 'dodge') +
+    xlab('') + ylab('') + labs(fill = '', title = paste0('Period Returns')) +
     scale_y_continuous(labels = scales::percent) +
     theme(axis.text.y = element_text(size = 7))
   dd <- drawdown(x)
