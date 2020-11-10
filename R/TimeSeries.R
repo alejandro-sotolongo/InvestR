@@ -306,3 +306,37 @@ xts_to_dataframe <- function(x) {
   }
   return(df)
 }
+
+
+#' @title Calendar time helper
+#' @param xwin string to represent calendar window
+#' @param asof ending date of window
+#' @return beginning date of window
+#' @export
+cal_time <- function(xwin = c('dtd', 'wtd', 'mtd', 'qtd', 'ytd', 'ttm',
+                              '3 yr', '5 yr', '10 yr', '20 yr', '30 yr'),
+                     asof = Sys.Date()) {
+  
+  xwin <- tolower(xwin[1])
+  if (!xwin %in% c('dtd', 'wtd', 'mtd', 'qtd', 'ytd', 'ttm',
+                   '3 yr', '5 yr', '10 yr', '20 yr', '30 yr')) {
+    stop('wxin must be one of: dtd, wtd, mtd, qtd, ytd, ttm, 3 yr, 5 yr, 10 yr, 
+         20 yr, 30 yr')
+  }
+  xyear <- lubridate::year(asof)
+  xmon <- lubridate::month(asof)
+  xday <- lubridate::day(asof)
+  switch (xwin,
+          dtd = asof,
+          wtd = lubridate::floor_date(asof, 'week') + 1,
+          mtd = lubridate::floor_date(asof, 'month'),
+          qtd = lubridate::floor_date(asof, 'quarter'),
+          ytd = lubridate::floor_date(asof, 'year'),
+          ttm = as.Date(paste0(xyear - 1, '-', xmon, '-', xday)),
+          '3 yr' = as.Date(paste0(xyear - 3, '-', xmon, '-', xday)),
+          '5 yr' = as.Date(paste0(xyear - 5, '-', xmon, '-', xday)),
+          '10 yr' = as.Date(paste0(xyear - 10, '-', xmon, '-', xday)),
+          '20 yr' = as.Date(paste0(xyear - 20, '-', xmon, '-', xday)),
+          '30 yr' = as.Date(paste0(xyear - 30, '-', xmon, '-', xday))
+  )
+}

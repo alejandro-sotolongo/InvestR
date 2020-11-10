@@ -1,6 +1,14 @@
+#' @title Plot Performance Summary
+#' @param x xts object
+#' @param period optional string to change the frequency of the xts
+#' @note this is a ggplot version of the chart.PerformanceSummary in the 
+#' PerformanceAnalytics package
+#' @import ggplot2
+#' @importFrom cowplot plot_grid
 #' @export
 viz_perf <- function(x, period = NULL) {
 
+  x <- na.omit(x)
   if (!is.null(period)) {
     x <- change_freq(x, period)
   }
@@ -9,13 +17,15 @@ viz_perf <- function(x, period = NULL) {
   plot_wealth <- tidyr::pivot_longer(df, -Date)
   g_wealth <- ggplot(plot_wealth, aes(x = Date, y = value, color = name)) +
     geom_line() +
-    xlab('') + ylab('') + labs(color = '', title = 'Cumulative Return')
+    xlab('') + ylab('') + labs(color = '', title = 'Cumulative Return') +
+    theme_light()
   df <- xts_to_dataframe(x)
   plot_returns <- tidyr::pivot_longer(df, -Date)
   g_return <- ggplot(plot_returns, aes(x = Date, y = value, fill = name)) +
     geom_bar(stat = 'identity', position = 'dodge') +
     xlab('') + ylab('') + labs(fill = '', title = paste0('Period Returns')) +
     scale_y_continuous(labels = scales::percent) +
+    theme_light() +
     theme(axis.text.y = element_text(size = 7))
   dd <- drawdown(x)
   df <- xts_to_dataframe(dd)
@@ -23,9 +33,32 @@ viz_perf <- function(x, period = NULL) {
   g_drawdown <- ggplot(plot_dd, aes(x = Date, y = value, color = name)) +
     geom_line() +
     xlab('') + ylab('') + labs(color = '', title = 'Drawdowns') +
-    scale_y_continuous(labels = scales::percent)
+    scale_y_continuous(labels = scales::percent) +
+    theme_light()
   cowplot::plot_grid(g_wealth, g_return, g_drawdown, ncol = 1,
                      rel_heights = c(2, 1, 1.25), align = 'v')
+}
+
+
+#' @title Plot Drawdowns
+#' @param x xts object
+#' @param period optional string to change the frequency of the xts
+#' @import ggplot2
+#' @export
+viz_drawdown <- function(x, period = NULL) {
+  
+  x <- na.omit(x)
+  if (!is.null(period)) {
+    x <- change_freq(x, period)
+  }
+  dd <- drawdown(x)
+  df <- xts_to_dataframe(dd)
+  plot_dd <- tidyr::pivot_longer(df, -Date)
+  ggplot(plot_dd, aes(x = Date, y = value, color = name)) +
+    geom_line() +
+    xlab('') + ylab('') + labs(color = '', title = 'Drawdowns') +
+    scale_y_continuous(labels = scales::percent) +
+    theme_light()
 }
 
 
