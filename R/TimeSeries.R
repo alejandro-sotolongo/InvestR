@@ -46,6 +46,10 @@ busday <- function(x, year_start = 1970, year_end = 2030) {
 #' fill_na_ret(x)
 #' fill_na_ret(x, median(x, TRUE))
 fill_na_ret <- function(x, rpl = 0) {
+  
+  if(nrow(x) == 1) {
+    return(x)
+  }
   ret <- apply(x, 2, .na_ret, rpl = rpl)
   .return_xts(ret)
 }
@@ -59,6 +63,10 @@ fill_na_ret <- function(x, rpl = 0) {
 #' @examples 
 #' fill_na_price(x)
 fill_na_price <- function(x) {
+  
+  if(nrow(x) == 1) {
+    return(x)
+  }
   price <- apply(x, 2, .na_price)
   .return_xts(price)
 }
@@ -308,6 +316,16 @@ xts_to_dataframe <- function(x) {
 }
 
 
+#' @export
+xts_to_list <- function(X) {
+  
+  xl <- list()
+  for (i in 1:ncol(x)) {
+    xl[[i]] <- x[, i]
+  }
+  return(xl)
+}
+
 #' @title Calendar time helper
 #' @param xwin string to represent calendar window
 #' @param asof ending date of window
@@ -317,6 +335,7 @@ cal_time <- function(xwin = c('dtd', 'wtd', 'mtd', 'qtd', 'ytd', 'ttm',
                               '3 yr', '5 yr', '10 yr', '20 yr', '30 yr'),
                      asof = Sys.Date()) {
   
+  asof <- as.Date(asof)
   xwin <- tolower(xwin[1])
   if (!xwin %in% c('dtd', 'wtd', 'mtd', 'qtd', 'ytd', 'ttm',
                    '3 yr', '5 yr', '10 yr', '20 yr', '30 yr')) {

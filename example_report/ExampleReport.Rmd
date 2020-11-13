@@ -1,0 +1,44 @@
+---
+title: "Example Report"
+output: 
+  pdf_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, 
+                      error = FALSE)
+```
+
+```{r}
+library(InvestR)
+library(kableExtra)
+data(ETF)
+x <- na.omit(dat[, 1:4])
+```
+
+\newpage
+
+# Performance Summary
+
+```{r, fig.height=9, fig.width=7}
+viz_perf(x)
+```
+
+\newpage
+
+# Performance Tables
+
+## Periodic Returns
+
+Returns (periods greater than one year are annualized) as of `r zoo::index(x)[nrow(x)]`
+
+```{r}
+cal_ret <- tbl_cal_perf(x)
+kbl <- kable(cal_ret$fmt)
+kable_styling(kbl, latex_options = 'striped')
+```
+
+## Key Stats
+
+From `r zoo::index(x)[1]` to `r zoo::index(x)[nrow(x)]`

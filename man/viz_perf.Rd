@@ -14,7 +14,3 @@ viz_perf(x, period = NULL)
 \description{
 Plot Performance Summary
 }
-\note{
-this is a ggplot version of the chart.PerformanceSummary in the 
-PerformanceAnalytics package
-}

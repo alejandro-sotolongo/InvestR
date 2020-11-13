@@ -7,7 +7,7 @@ excess_cov <- function(x, rf) {
 
 
 #' @export
-geo_ret <- function(x, use_busday = TRUE, period = NULL) {
+geo_ret <- function(x, use_busday = TRUE, period = NULL, remove_na = TRUE) {
 
   if (use_busday) {
     x <- busday(x)
@@ -19,13 +19,23 @@ geo_ret <- function(x, use_busday = TRUE, period = NULL) {
   if (is.null(a)) {
     stop(paset0('invalid period: ', period))
   }
-  wealth <- apply(x + 1, 2, prod, na.rm = TRUE)
+  wealth <- apply(x + 1, 2, prod, na.rm = remove_na)
   wealth^(a / nrow(x)) - 1
 }
 
 
 #' @export
-vol <- function(x, use_busday = TRUE, period = NULL) {
+cum_ret <- function(x, use_busday = TRUE, remove_na = TRUE) {
+
+  if (use_busday) {
+    x <- busday(x)
+  }
+  wealth <- apply(x + 1, 2, prod, na.rm = remove_na)
+  wealth - 1
+}
+
+#' @export
+vol <- function(x, use_busday = TRUE, period = NULL, remove_na = TRUE) {
 
   if (use_busday) {
     x <- busday(x)
@@ -37,7 +47,7 @@ vol <- function(x, use_busday = TRUE, period = NULL) {
   if (is.null(a)) {
     stop(paset0('invalid period: ', period))
   }
-  period_sd <- apply(x, 2, sd, na.rm = TRUE)
+  period_sd <- apply(x, 2, sd, na.rm = remove_na)
   period_sd * sqrt(a)
 }
 
@@ -85,6 +95,32 @@ drawdown <- function(x) {
   wi <- cumprod(x + 1)
   wi_peak <- cummax(wi)
   wi / wi_peak - 1
+}
+
+.calc_vol_wrap <- function(x) {
+  apply(x, 2, sd)
+}
+
+
+#' @export
+roll_vol <- function(x, roll_win = 63, use_busday = TRUE, period = NULL, 
+                     remove_na = TRUE) {
+  
+  if (use_busday) {
+    x <- busday(x)
+  }
+  if (is.null(period)) {
+    period <- periodicity(ret)$units
+  }
+  a <- freq_to_scaler(period)
+  if (is.null(a)) {
+    stop(paset0('invalid period: ', period))
+  }
+  df <- data.frame(x)
+  vol_list <- slider::slide(df, ~.calc_vol_wrap(.x), .complete = TRUE, .before = roll_win)
+  vol <- do.call('rbind', vol_list)
+  vol_ann <- apply(vol, 2, function(x, a) {x * sqrt(a)}, a = a)
+  xts(vol_ann, as.Date(rownames(vol_ann)))
 }
 
 #' @export
