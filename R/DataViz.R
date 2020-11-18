@@ -4,7 +4,7 @@
 #' @import ggplot2
 #' @importFrom cowplot plot_grid
 #' @export
-viz_perf <- function(x, period = NULL) {
+viz_perf <- function(x, period = NULL, plot_col = NULL) {
 
   x <- na.omit(x)
   if (!is.null(period)) {
@@ -13,6 +13,7 @@ viz_perf <- function(x, period = NULL) {
   wealth <- ret_to_price(x)
   df <- xts_to_dataframe(wealth)
   plot_wealth <- tidyr::pivot_longer(df, -Date)
+  plot_wealth$name <- factor(plot_wealth$name, unique(plot_wealth$name))
   g_wealth <- ggplot(plot_wealth, aes(x = Date, y = value, color = name)) +
     geom_line() +
     xlab('') + ylab('') + labs(color = '', title = 'Cumulative Return') +
@@ -20,6 +21,7 @@ viz_perf <- function(x, period = NULL) {
   vol <- roll_vol(x)
   df <- xts_to_dataframe(vol)
   plot_vol <- tidyr::pivot_longer(df, -Date) 
+  plot_vol$name <- factor(plot_vol$name, unique(plot_vol$name))
   g_roll_vol <- ggplot(plot_vol, aes(x = Date, y = value, color = name)) +
     geom_line() +
     xlab('') + ylab('') + labs(color = '', title = 'Rolling Volatility') +
@@ -28,11 +30,17 @@ viz_perf <- function(x, period = NULL) {
   dd <- drawdown(x)
   df <- xts_to_dataframe(dd)
   plot_dd <- tidyr::pivot_longer(df, -Date)
+  plot_dd$name <- factor(plot_dd$name, unique(plot_dd$name))
   g_drawdown <- ggplot(plot_dd, aes(x = Date, y = value, color = name)) +
     geom_line() +
     xlab('') + ylab('') + labs(color = '', title = 'Drawdowns') +
     scale_y_continuous(labels = scales::percent) +
     theme_light()
+  if (!is.null(plot_col)) {
+    g_wealth <- g_wealth + scale_color_manual(values = plot_col)
+    g_roll_vol <- g_roll_vol + scale_color_manual(values = plot_col)
+    g_drawdown <- g_drawdown + scale_color_manual(values = plot_col)
+  }
   cowplot::plot_grid(g_wealth, g_roll_vol, g_drawdown, ncol = 1,
                      rel_heights = c(2, 1, 1), align = 'v')
 }
@@ -78,7 +86,7 @@ tbl_cal_perf <- function(x, asof = NULL) {
   xts_list <- mapply(trunc_xts, x = list(x), date_start = date_vec, 
                      date_end = asof)
   xts_list_fill <- lapply(xts_list, fill_na_ret)
-  perf <- sapply(xts_list_fill, cum_ret, use_busday = FALSE, remove_na = FALSE)
+  perf <- sapply(xts_list_fill, cum_ret, remove_na = FALSE)
   perf[, 7] <- (1 + perf[, 7])^(1/3) - 1
   perf[, 8] <- (1 + perf[, 8])^(1/5) - 1
   perf[, 9] <- (1 + perf[, 9])^(1/10) - 1
@@ -97,6 +105,113 @@ tbl_cal_perf <- function(x, asof = NULL) {
   res$num <- perf_out_sort
   return(res)
 }
+
+
+#' @export
+tbl_perf_stat <- function(fund, comp, rf, period = NULL) {
+  
+  combo <- combine_xts(fund, comp, rf, period = period, use_busday = FALSE)
+  fund <- combo[, 1]
+  comp <- combo[, 2:(ncol(combo) - 1)]
+  rf <- combo[, ncol(combo)]
+  rf_mu <- geo_ret(rf)
+  x <- combo[, -ncol(combo)]
+  ret <- geo_ret(x)
+  xvol <- vol(x)
+  xvol_down <- down_vol(x)
+  dd <- drawdown(x)
+  worst_dd <- apply(dd, 2, min)
+  sharpe <- sharpe_ratio(x, rf)
+  sortino <- sortino_ratio(x, rf_mu)
+  ret_worst_dd <- geo_ret(x) / -(worst_dd)
+  ecov <- excess_cov(x, rf)
+  xbeta <- ecov[1, ] / diag(ecov)
+  omega <- omega_ratio(x, method = 'standard')
+  capt <- list()
+  for (i in 1:ncol(comp)) {
+    capt[[i]] <- up_down_capt(fund, comp[, i])
+  }
+  up_capt <- sapply(capt, '[[', 'up')[1, ]
+  down_capt <- sapply(capt, '[[', 'down')[1, ]
+  num <- rbind(ret, xvol, xvol_down, worst_dd, sharpe, sortino, ret_worst_dd,
+               omega, xbeta, c(1, up_capt), c(1, down_capt))
+  fmt <- num
+  percent_rows <- c(1:4, 10:11)
+  fmt[percent_rows, ] <- f_percent(num[percent_rows, ])
+  num_rows <- 5:9
+  fmt[num_rows, ] <- f_num(num[num_rows, ])
+  fmt <- data.frame(fmt, row.names = NULL)
+  fmt$Estimate <- c('Geometric Return', 'Volatility', 'Downside Volatility',
+                    'Worst Drawdown', 'Sharpe Ratio', 'Sortino Ratio',
+                    'Geo. Return / Worst DD', 'Omega Ratio', 'Beta', 
+                    'Upside Capture', 'Downside Capture')
+  fmt <- fmt[, c('Estimate', colnames(x))]
+  res <- list()
+  res$fmt <- fmt
+  res$num <- num
+  return(res)
+} 
+
+
+#' @export
+tbl_quantile <- function(x, probs = c(0.05, 0.25, 0.5, 0.75, 0.95)) {
+  
+  q <- apply(x, 2, quantile, na.rm = TRUE, probs = probs)
+  df <- data.frame(apply(q, 2, f_percent))
+  df$Percentile <- f_num(probs * 100, 0)
+  df[, c('Percentile', colnames(x))]
+}
+
+#' @export
+tbl_mv_reg <- function(fund, fact, rf, period = NULL) {
+  
+  if (is.null(period)) {
+    period <- periodicity(fund)$units
+  }
+  a <- freq_to_scaler(period)
+  fit <- mv_reg(fund, fact, rf, period)
+  tbl_num <- matrix(nrow = ncol(fact) + 3, ncol = ncol(fund))
+  coeff <- sapply(fit, '[[', 'coefficients')
+  fit_summ <- lapply(fit, function(x) {summary(x)})
+  r2 <- sapply(fit_summ, '[[', 'r.squared')
+  adj_r2 <- sapply(fit_summ, '[[', 'adj.r.squared')
+  tbl_num[1:nrow(coeff), ] <- coeff
+  tbl_num[1, ] <- tbl_num[1, ] * a
+  tbl_num[nrow(coeff) + 1, ] <- r2
+  tbl_num[nrow(coeff) + 2, ] <- adj_r2
+  tbl_fmt <- data.frame(tbl_num)
+  tbl_fmt[1, ] <- f_percent(tbl_num[1, ])
+  tbl_fmt[2:nrow(coeff), ] <- f_num(tbl_num[2:nrow(coeff), ])
+  last_2_rows <- (nrow(coeff) + 1):nrow(tbl_fmt)
+  tbl_fmt[last_2_rows, ] <- f_percent(tbl_num[last_2_rows, ])
+  colnames(tbl_fmt) <- colnames(fund)
+  tbl_fmt$Estimate <- c('Intercept (ann.)', colnames(fact), 'R-squared', 
+                        'Adj. R-squared')
+  tbl_fmt <- tbl_fmt[, c('Estimate', colnames(fund))]
+  res <- list()
+  res$fmt <- tbl_fmt
+  res$num <- tbl_num
+  res$fit <- fit
+  res$fit_summ <- fit_summ
+  return(res)
+}
+
+
+#' @export
+kbl_mv_reg <- function(fund, fact, rf, period = NULL, t_stat_crit = 2) {
+  
+  tbl_list <- tbl_mv_reg(fund, fact, rf, period)
+  t_stat <- sapply(tbl_list$fit_summ, function(x){x$coefficients[, 3]})
+  tbl <- tbl_list$fmt
+  for (i in 2:ncol(tbl)) {
+    tbl[, i] <- cell_spec(tbl[, i], 
+                          bold = c(ifelse(abs(t_stat[, i - 1]) > t_stat_crit, 
+                                          TRUE, FALSE), FALSE, FALSE))
+  }     
+  kbl <- kable(tbl, escape = FALSE)
+  kable_styling(kbl, latex_options = 'striped')
+}
+
 
 #' @export
 f_percent <- function(x, digits = 2) {

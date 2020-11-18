@@ -4,7 +4,7 @@
 \alias{viz_perf}
 \title{Plot Performance Summary}
 \usage{
-viz_perf(x, period = NULL)
+viz_perf(x, period = NULL, plot_col = NULL)
 }
 \arguments{
 \item{x}{xts object}

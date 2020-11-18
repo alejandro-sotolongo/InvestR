@@ -99,6 +99,32 @@ download_french <- function(data_url, skip) {
 }
 
 
+#' @export
+download_french_rf <- function(skip = 4) {
+  
+  tmp <- tempfile()
+  url <- 'https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/ftp/F-F_Research_Data_Factors_daily_CSV.zip'
+  download.file(url, destfile = tmp)
+  uzfile <- unzip(tmp)
+  clean_french_ret <- function(x) {
+    x <- gsub('  ', '', x)
+    x <- gsub(' ', '', x)
+    x <- as.numeric(x)
+    x[x >= 99.99] <- NA
+    x[x <= -99.99] <- NA
+    x / 100
+  }
+  dat <- read.csv(uzfile, skip = skip)
+  dat$X <- as.Date(as.character(dat$X), format = '%Y%m%d')
+  dat[, 2:ncol(dat)] <- apply(dat[, 2:ncol(dat), drop = FALSE], 2, clean_french_ret)
+  dat <- na.omit(dat)
+  dat <- dat[, c(1, 5)]
+  dat_ext <- data.frame(X = seq.Date(dat$X[nrow(dat)] + 1, Sys.Date(), 'days'), 
+                        RF = dat$RF[nrow(dat)])
+  dat <- rbind(dat, dat_ext)
+  xts(dat[, 2], as.Date(dat[, 1]))
+}
+
 download_shiller <- function() {
   
   tmp <- tempfile()

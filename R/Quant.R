@@ -7,17 +7,31 @@ excess_cov <- function(x, rf) {
 
 
 #' @export
-geo_ret <- function(x, use_busday = TRUE, period = NULL, remove_na = TRUE) {
-
-  if (use_busday) {
-    x <- busday(x)
+mrf <- function(x, rf, period = NULL) {
+  
+  x_start <- zoo::index(x)[1]
+  x_end <- zoo::index(x)[nrow(x)]
+  if (x_start < zoo::index(rf)[1]) {
+    stop('x begins before rf')
   }
+  if (x_end > zoo::index(rf)[nrow(rf)]) {
+    stop('x ends after rf')
+  }
+  rf_cut <- trunc_xts(rf, x_start, x_end)
+  x_mu <- geo_ret(x, period)
+  rf_mu <- geo_ret(rf_cut, period)
+  x_mu - rf_mu
+}
+
+
+#' @export
+geo_ret <- function(x, period = NULL, remove_na = TRUE) {
+
   if (is.null(period)) {
-    period <- periodicity(ret)$units
+    period <- periodicity(x)$units
   }
   a <- freq_to_scaler(period)
   if (is.null(a)) {
-    stop(paset0('invalid period: ', period))
   }
   wealth <- apply(x + 1, 2, prod, na.rm = remove_na)
   wealth^(a / nrow(x)) - 1
@@ -25,30 +39,138 @@ geo_ret <- function(x, use_busday = TRUE, period = NULL, remove_na = TRUE) {
 
 
 #' @export
-cum_ret <- function(x, use_busday = TRUE, remove_na = TRUE) {
+cum_ret <- function(x, remove_na = TRUE) {
 
-  if (use_busday) {
-    x <- busday(x)
-  }
   wealth <- apply(x + 1, 2, prod, na.rm = remove_na)
   wealth - 1
 }
 
-#' @export
-vol <- function(x, use_busday = TRUE, period = NULL, remove_na = TRUE) {
 
-  if (use_busday) {
-    x <- busday(x)
-  }
+#' @export
+vol <- function(x, period = NULL, remove_na = TRUE, annualize = TRUE) {
+
   if (is.null(period)) {
-    period <- periodicity(ret)$units
+    period <- periodicity(x)$units
   }
   a <- freq_to_scaler(period)
   if (is.null(a)) {
-    stop(paset0('invalid period: ', period))
+    stop(paste0('invalid period: ', period))
   }
   period_sd <- apply(x, 2, sd, na.rm = remove_na)
-  period_sd * sqrt(a)
+  if (annualize) {
+    return(period_sd * sqrt(a))
+  } else {
+    return(period_sd)
+  }
+}
+
+
+#' @export
+down_vol <- function(x, mar = 0, period = NULL, remove_na = TRUE, 
+                     annualize = TRUE) {
+  
+  if (is.null(period)) {
+    period <- periodicity(x)$units
+  }
+  a <- freq_to_scaler(period)
+  if (is.null(a)) {
+    stop(paste0('invalid period: ', period))
+  }
+  down_sd <- apply(x, 2, .down_vol_wrap, mar = mar, remove_na = remove_na)
+  if (annualize) {
+    return(down_sd * sqrt(a))
+  } else {
+    return(down_sd)
+  }
+}
+
+
+.down_vol_wrap <- function(x, mar, remove_na) {
+  is_down <- x < mar
+  sd(x[is_down], na.rm = remove_na)
+}
+
+#' @export
+sharpe_ratio <- function(x, rf, period = NULL) {
+  
+  mrf(x, rf, period) / vol(x, period)
+}
+
+
+#' @export
+sortino_ratio <- function(x, mar = 0, period = NULL) {
+  
+  (geo_ret(x, period = period) - mar) / down_vol(x, mar = mar, period = period)
+}
+
+
+#' @export
+up_down_capt <- function(x, y) {
+  
+  if (ncol(y) > 1) {
+    stop('y needs to be a univariate xts')
+  }
+  combo <- combine_xts(x, y, use_busday = FALSE)
+  is_y_up <- combo[, ncol(combo)] > 0
+  combo_split <- split(combo, is_y_up)
+  up <- geo_ret(combo_split[[2]])
+  down <- geo_ret(combo_split[[1]])
+  up_capture <- up / up[length(up)]
+  down_capture <- down / down[length(down)]
+  res <- list()
+  res$up <- up_capture
+  res$down <- down_capture
+  return(res)
+}
+
+
+#' @export
+omega_ratio <- function(x, mar = 0, method = c('weight', 'standard'), 
+                        remove_na = TRUE) {
+  
+  if (remove_na) {
+    x <- na.omit(x)
+  }
+  apply(x, 2, .omega_ratio_wrap, mar = mar, method = method)  
+}
+
+
+.omega_ratio_wrap <- function(x, mar, method = c('weight', 'standard')) {
+  
+  d <- density(x)
+  above_mar <- d$x > mar
+  method <- tolower(method)[1]
+  if (method == 'weight') {
+    d$x <- d$x - mar
+    up_area <- t(d$y[above_mar]) %*% d$x[above_mar]
+    down_area <- t(d$y[!above_mar]) %*% d$x[!above_mar]
+    res <- up_area / -down_area
+    return(res)[1]
+  } else {
+    cum_y_scale <- cumsum(d$y) / sum(d$y)
+    up_area <- min(cum_y_scale[above_mar])
+    down_area <- 1 - up_area
+    return(up_area / down_area)
+  }
+}
+
+
+#' @export
+mv_reg <- function(fund, fact, rf, period = NULL) {
+  
+  n_funds <- ncol(fund)
+  n_facts <- ncol(fact)
+  if (ncol(rf) > 1) {
+    stop('rf must be 1 time-series')
+  }
+  x <- combine_xts(fund, fact, rf, period = period)
+  fund_exc <- excess_ret(x[, 1:n_funds], x[, ncol(x)])
+  fact_exc <- excess_ret(x[, (n_funds + 1):(ncol(x) - 1)], x[, ncol(x)])
+  fit <- list()
+  for (i in 1:n_funds) {
+    fit[[i]] <- lm(fund_exc[, i] ~ fact_exc)
+  }
+  return(fit)
 }
 
 
@@ -73,7 +195,7 @@ risk_cluster_wgt <- function(hc, vol, k = 2) {
   }
   vol <- matrix(vol, ncol = 1)
   xcov <- vol %*% t(vol) * xcor
-  mu_vec <- vol * .25
+  mu_vec <- vol * 0.25
   cov_inv <- MASS::ginv(xcov)
   (cov_inv %*% mu_vec) /
     (matrix(1, ncol = length(hc$order), nrow = 1) %*% cov_inv %*% mu_vec)[1]
@@ -103,18 +225,14 @@ drawdown <- function(x) {
 
 
 #' @export
-roll_vol <- function(x, roll_win = 63, use_busday = TRUE, period = NULL, 
-                     remove_na = TRUE) {
+roll_vol <- function(x, roll_win = 63, period = NULL, remove_na = TRUE) {
   
-  if (use_busday) {
-    x <- busday(x)
-  }
   if (is.null(period)) {
-    period <- periodicity(ret)$units
+    period <- periodicity(x)$units
   }
   a <- freq_to_scaler(period)
   if (is.null(a)) {
-    stop(paset0('invalid period: ', period))
+    stop(paste0('invalid period: ', period))
   }
   df <- data.frame(x)
   vol_list <- slider::slide(df, ~.calc_vol_wrap(.x), .complete = TRUE, .before = roll_win)
