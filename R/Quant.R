@@ -148,8 +148,8 @@ omega_ratio <- function(x, mar = 0, method = c('weight', 'standard'),
     return(res)[1]
   } else {
     cum_y_scale <- cumsum(d$y) / sum(d$y)
-    up_area <- min(cum_y_scale[above_mar])
-    down_area <- 1 - up_area
+    down_area <- min(cum_y_scale[above_mar])
+    up_area <- 1 - down_area
     return(up_area / down_area)
   }
 }
@@ -357,3 +357,53 @@ pca_cov <- function(cov_mat) {
   return(res)
 }
 
+
+roll_style_analysis <- function(fund, fact, roll_period = 504) {
+  
+  ind_coeff <- matrix(nrow = nrow(fund) - roll_period + 1, ncol = ncol(fact))
+  for (i in roll_period:nrow(fund)) {
+    roll_fund <- fund[(i - roll_period + 1):i, ]
+    roll_fact <- fact[(i - roll_period + 1):i, ]
+    ind_coeff[(i - roll_period + 1), ] <- style_analysis(roll_fund, roll_fact)
+  }
+  coeff_xts <- xts(ind_coeff, zoo::index(fund)[roll_period:nrow(fund)])
+  return(coeff_xts)
+}
+
+
+
+#' @export
+style_analysis <- function(fund, fact) {
+  
+  res <- track_error_min_qp(fund, fact)
+  res$solution
+}
+
+
+#' @export
+track_error_min_qp <- function(fund, fact) {
+  
+  n_fact <- ncol(fact)
+  cov_fact <- cov(fact)
+  cov_vec <- matrix(nrow = n_fact, ncol = 1)
+  for (i in 1:n_fact) {
+    cov_vec[i, 1] <- cov(fact[, i], fund)
+  }
+  #a_mat <- cbind(rep(1, n_fact), diag(n_fact))
+  #b_vec <- c(1, rep(0, n_fact))
+  a_mat <- rbind(rep(1, n_fact), diag(-1, n_fact), diag(1, n_fact))
+  b_0 <- c(1, rep(-1, n_fact), rep(0, n_fact))
+  res <- quadprog::solve.QP(cov_fact, cov_vec, t(a_mat), bvec = b_0)
+  return(res)
+}
+
+
+test_track_error <- function(fund, fact, res) {
+  
+  c_part <- 0
+  for (i in 1:ncol(fact)) {
+    c_part <- c_part + res$recons[i] * fund
+  }
+  t_ind <- fund - c_part 
+  return(t_ind)
+}
