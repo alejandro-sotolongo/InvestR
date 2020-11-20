@@ -41,6 +41,8 @@ kbl <- kable(cal_ret$fmt)
 kable_styling(kbl, latex_options = 'striped')
 ```
 
+\vspace{15pt}
+
 ## Key Performance Metrics
 
 From `r zoo::index(x)[1]` to `r zoo::index(x)[nrow(x)]`
@@ -51,6 +53,8 @@ kbl <- kable(res$fmt)
 kable_styling(kbl, latex_options = 'striped')
 ```
 
+\vspace{15pt}
+
 ## Quantiles
 
 From `r zoo::index(x)[1]` to `r zoo::index(x)[nrow(x)]`
@@ -60,3 +64,6 @@ res <- tbl_quantile(x)
 kbl <- kable(res)
 kable_styling(kbl, latex_options = 'striped')
 ```
+
+
+

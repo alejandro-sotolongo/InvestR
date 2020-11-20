@@ -68,6 +68,16 @@ viz_drawdown <- function(x, period = NULL) {
 }
 
 
+viz_roll_style <- function(fund, fact, roll_period = 504) {
+  
+  dat <- roll_style_analysis(fund, fact, roll_period)
+  df <- xts_to_dataframe(dat)
+  plot_dat <- tidyr::pivot_longer(df, -Date)
+  ggplot(plot_dat, aes(x = Date, y = value, fill = name)) +
+    geom_area()
+  
+}
+
 #' @export
 tbl_cal_perf <- function(x, asof = NULL) {
   

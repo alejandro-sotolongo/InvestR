@@ -358,18 +358,17 @@ pca_cov <- function(cov_mat) {
 }
 
 
+#' @export
 roll_style_analysis <- function(fund, fact, roll_period = 504) {
   
-  ind_coeff <- matrix(nrow = nrow(fund) - roll_period + 1, ncol = ncol(fact))
-  for (i in roll_period:nrow(fund)) {
-    roll_fund <- fund[(i - roll_period + 1):i, ]
-    roll_fact <- fact[(i - roll_period + 1):i, ]
-    ind_coeff[(i - roll_period + 1), ] <- style_analysis(roll_fund, roll_fact)
-  }
-  coeff_xts <- xts(ind_coeff, zoo::index(fund)[roll_period:nrow(fund)])
-  return(coeff_xts)
+  x <- combine_xts(fund, fact, use_busday = FALSE)
+  roll_list <- slider::slide(x, ~style_analysis(.x[, 1], .x[, 2:ncol(x)]),
+                             .before = roll_period, .complete = TRUE)
+  roll_mat <- do.call('rbind', roll_list) 
+  roll_xts <- xts(roll_mat, zoo::index(x)[(roll_period + 1):nrow(x)])
+  colnames(roll_xts) <- colnames(fact)
+  return(roll_xts)
 }
-
 
 
 #' @export
@@ -389,11 +388,10 @@ track_error_min_qp <- function(fund, fact) {
   for (i in 1:n_fact) {
     cov_vec[i, 1] <- cov(fact[, i], fund)
   }
-  #a_mat <- cbind(rep(1, n_fact), diag(n_fact))
-  #b_vec <- c(1, rep(0, n_fact))
-  a_mat <- rbind(rep(1, n_fact), diag(-1, n_fact), diag(1, n_fact))
+  a_mat_t <- rbind(rep(1, n_fact), diag(-1, n_fact), diag(1, n_fact))
+  a_mat <- t(a_mat_t)
   b_0 <- c(1, rep(-1, n_fact), rep(0, n_fact))
-  res <- quadprog::solve.QP(cov_fact, cov_vec, t(a_mat), bvec = b_0)
+  res <- quadprog::solve.QP(cov_fact, cov_vec, a_mat, bvec = b_0)
   return(res)
 }
 
