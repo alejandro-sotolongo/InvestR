@@ -359,11 +359,13 @@ pca_cov <- function(cov_mat) {
 
 
 #' @export
-roll_style_analysis <- function(fund, fact, roll_period = 504) {
+roll_style_analysis <- function(fund, fact, period = 'week', roll_period = 156, 
+                                .step = 1L) {
   
-  x <- combine_xts(fund, fact, use_busday = FALSE)
+  x <- combine_xts(fund, fact, period = period, use_busday = FALSE)
   roll_list <- slider::slide(x, ~style_analysis(.x[, 1], .x[, 2:ncol(x)]),
-                             .before = roll_period, .complete = TRUE)
+                             .before = roll_period, .complete = TRUE, 
+                             .step = .step)
   roll_mat <- do.call('rbind', roll_list) 
   roll_xts <- xts(roll_mat, zoo::index(x)[(roll_period + 1):nrow(x)])
   colnames(roll_xts) <- colnames(fact)

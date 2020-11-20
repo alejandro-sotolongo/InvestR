@@ -78,6 +78,40 @@ viz_roll_style <- function(fund, fact, roll_period = 504) {
   
 }
 
+
+viz_style_drift <- function(fund, fact, period = 'week', roll_period = 156,
+                            .step = 1L) {
+  
+  roll_wgt <- roll_style_analysis(fund, fact, period, roll_period, .step)
+  y_point <- roll_wgt[, 1] + roll_wgt[, 3] - roll_wgt[, 2] - roll_wgt[, 4]
+  x_point <- roll_wgt[, 1] + roll_wgt[, 2] - roll_wgt[, 3] - roll_wgt[, 4]
+  plot_xts <- cbind(x_point, y_point)
+  first_date <- zoo::index(plot_xts)[1]
+  last_date <- zoo::index(plot_xts)[nrow(plot_xts)]
+  plot_df <- xts_to_dataframe(plot_xts)
+  colnames(plot_df) <- c('Date', 'X', 'Y')
+  ref_df <- data.frame(Label = c('Large Value', 'Small Value', 'Large Growth', 'Small Growth'),
+                       X = c(-1, -1, 1, 1),
+                       Y = c(1, -1, 1, -1),
+                       Date = rep(last_date), 4)
+  ggplot(plot_df, aes(x = X, y = Y, color = Date)) +
+    geom_point() +
+    scale_x_continuous(minor_breaks = seq(-1, 1, 1),
+                       limits = c(-1.5, 1.5)) +
+    scale_y_continuous(minor_breaks = seq(-1, 1, 1),
+                       limits = c(-1.5, 1.5)) +
+    geom_point(data = ref_df, aes(x = X, y = Y), color = 'darkgrey', size = 2) +
+    geom_text(data = ref_df, mapping = aes(x = X, y = Y, label = Label),
+              size = 3, nudge_y = 0.15, color = 'black') +
+    xlab('') + ylab('') +
+    theme_light() +
+    theme(panel.grid.minor = element_line(color = 'grey', size = 0.5))
+    
+}
+
+
+
+
 #' @export
 tbl_cal_perf <- function(x, asof = NULL) {
   
