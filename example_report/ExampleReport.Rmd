@@ -41,7 +41,16 @@ kbl <- kable(cal_ret$fmt)
 kable_styling(kbl, latex_options = 'striped')
 ```
 
-\vspace{15pt}
+## Calendar Returns
+
+Fund Ticker `r colnames(x)[1]`
+
+```{r}
+mon_ret <- tbl_month_ret(x[, 1], dig = 2)
+kbl <- kable(mon_ret$fmt)
+kbl_in <- kable_styling(kbl)
+column_spec(kbl_in, 14, bold = TRUE)
+```
 
 ## Key Performance Metrics
 
@@ -50,18 +59,6 @@ From `r zoo::index(x)[1]` to `r zoo::index(x)[nrow(x)]`
 ```{r}
 res <- tbl_perf_stat(x[, 1], x[, 2:4], rf)
 kbl <- kable(res$fmt)
-kable_styling(kbl, latex_options = 'striped')
-```
-
-\vspace{15pt}
-
-## Quantiles
-
-From `r zoo::index(x)[1]` to `r zoo::index(x)[nrow(x)]`
-
-```{r}
-res <- tbl_quantile(x)
-kbl <- kable(res)
 kable_styling(kbl, latex_options = 'striped')
 ```
 

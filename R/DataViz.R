@@ -79,6 +79,7 @@ viz_roll_style <- function(fund, fact, roll_period = 504) {
 }
 
 
+#' @export
 viz_style_drift <- function(fund, fact, period = 'week', roll_period = 156,
                             .step = 1L) {
   
@@ -108,8 +109,6 @@ viz_style_drift <- function(fund, fact, period = 'week', roll_period = 156,
     theme(panel.grid.minor = element_line(color = 'grey', size = 0.5))
     
 }
-
-
 
 
 #' @export
@@ -150,6 +149,38 @@ tbl_cal_perf <- function(x, asof = NULL) {
   return(res)
 }
 
+
+#' @export
+tbl_month_ret <- function(x, dig = 2) {
+  
+  ret <- change_freq(x, 'months')
+  dt <- zoo::index(ret)
+  month <- lubridate::month(dt)
+  year <- lubridate::year(dt)
+  year_adj <- year - year[1] + 1
+  ret_vec <- as.numeric(ret)
+  tbl <- matrix(nrow = max(year_adj), ncol = 13)
+  for (i in 1:length(ret_vec)) {
+    tbl[year_adj[i], month[i]] <- ret_vec[i]
+  }
+  year_ret <- change_freq(x, 'years')
+  first_year <- year[1]
+  date_start <- as.Date(paste0(first_year, '-01-01'))
+  date_end <- as.Date(paste0(first_year, '-12-31'))
+  first_year_ret <- prod(1 + x[paste0(date_start, '/', date_end)]) - 1
+  tbl[, 13] <- c(first_year_ret, as.numeric(year_ret))
+  tbl_fmt <- apply(tbl, 2, f_num_per, digits = dig)
+  tbl_fmt <- data.frame(tbl_fmt)
+  colnames(tbl_fmt) <- c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug',
+                         'Sep', 'Oct', 'Nov', 'Dec', 'Yr')
+  tbl_fmt$Year <- unique(year)
+  tbl_fmt <- tbl_fmt[, c('Year', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 
+                         'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Yr')]
+  res <- list()
+  res$fmt <- tbl_fmt
+  res$num <- tbl
+  return(res)
+}
 
 #' @export
 tbl_perf_stat <- function(fund, comp, rf, period = NULL) {
@@ -271,7 +302,14 @@ f_percent <- function(x, digits = 2) {
 
 #' @export
 f_num <- function(x, digits = 2) {
-  x <- formatC(x, digits = 2, format = 'f', big.mark = ',')
+  x <- formatC(x, digits = digits, format = 'f', big.mark = ',')
+  x[x == ' NA'] <- '-'
+  return(x)
+}
+
+#' @export
+f_num_per <- function(x, digits = 2) {
+  x <- formatC(x * 100, digits = digits, format = 'f', big.mark = ',')
   x[x == ' NA'] <- '-'
   return(x)
 }
