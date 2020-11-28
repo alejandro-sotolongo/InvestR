@@ -210,8 +210,6 @@ drawdown <- function(x) {
   .return_xts(dd)
 }
 
-
-#' @export
 .drawdown_calc <- function(x) {
 
   wi <- cumprod(x + 1)
@@ -219,9 +217,61 @@ drawdown <- function(x) {
   wi / wi_peak - 1
 }
 
-.calc_vol_wrap <- function(x) {
-  apply(x, 2, sd)
+
+#' @export
+find_drawdowns <- function(x) {
+  
+  if (ncol(x) > 1) {
+    warning('x needs to be univariate, taking the first column')
+    x <- x[, 1]
+  }
+  dd <- drawdown(x)
+  dd <- xts_to_dataframe(dd)
+  colnames(dd) <- c('Date', 'Drawdown')
+  dd$isDown <- dd[, 2] < 0
+  dd$isDownLag <- c(NA, dd[1:(nrow(dd) - 1), 'isDown'])
+  dd$start <- dd$isDown & !dd$isDownLag # change from 0 to negative signals drawdown start
+  dd$end <- !dd$isDown & dd$isDownLag # change from negative back to 0 signals recovery
+  start_date <- dd[dd$start, 1]
+  end_date <- dd[dd$end, 1]
+  # if lengths of start and end dates are the same the time-series ends on
+  # a drawdown and we need to adjust last end date to last start date
+  if (length(end_date) == length(start_date)) {
+    dd_date <- data.frame(StartDate = start_date,
+                          EndDate = c(end_date[2:length(end_date)],
+                                      start_date[length(start_date)]))
+  } else {
+    dd_date <- data.frame(StartDate = start_date,
+                          EndDate = end_date[2:length(end_date)])
+  }
+  # create unique list of drawdowns
+  dd_list <- mapply(trunc_df,
+                    df = list(dd[, 1:2]),
+                    date_start = dd_date$StartDate,
+                    date_end = dd_date$EndDate,
+                    SIMPLIFY = FALSE)
+  .get_min_dd <- function(x) {
+    # find trough by finding which observation equals the minimum
+    indx <- which(x[, 2] == min(x[, 2]))
+    # if there are more than one observations equal to the minimum take the first one
+    if (length(indx) > 1) {
+      indx <- indx[1]
+    }
+    x[indx, ]
+  }
+  trough_list <- lapply(dd_list, .get_min_dd)
+  trough_df <- do.call(rbind, trough_list)
+  res <- data.frame(StartDate = dd_date$StartDate,
+                    TroughDate = trough_df$Date,
+                    EndDate = dd_date$EndDate,
+                    Trough = trough_df$Drawdown,
+                    DaysToTrough = trough_df$Date - dd_date$StartDate,
+                    DaysToRecover = dd_date$EndDate - trough_df$Date,
+                    TotalDays = dd_date$EndDate - dd_date$StartDate)
+  colnames(res)[4] <- 'Drawdown'
+  return(res)
 }
+
 
 
 #' @export
@@ -240,6 +290,11 @@ roll_vol <- function(x, roll_win = 63, period = NULL, remove_na = TRUE) {
   vol_ann <- apply(vol, 2, function(x, a) {x * sqrt(a)}, a = a)
   xts(vol_ann, as.Date(rownames(vol_ann)))
 }
+
+.calc_vol_wrap <- function(x) {
+  apply(x, 2, sd)
+}
+
 
 #' @export
 roll_turb <- function(ret, roll_win = 156, z_win_short = 5, z_win_long = 156) {

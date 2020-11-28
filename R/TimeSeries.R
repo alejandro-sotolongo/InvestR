@@ -359,3 +359,19 @@ cal_time <- function(xwin = c('dtd', 'wtd', 'mtd', 'qtd', 'ytd', 'ttm',
           '30 yr' = as.Date(paste0(xyear - 30, '-', xmon, '-', xday))
   )
 }
+
+
+#' @export
+trunc_df <- function(df, date_start = NULL, date_end = NULL) {
+  
+  colnames(df)[1] <- 'Date'
+  if (!is.null(date_start)) {
+    ind <- df$Date >= as.Date(date_start)
+    df <- df[ind, ]
+  }
+  if (!is.null(date_end)) {
+    ind <- df$Date <= as.Date(date_end)
+    df <- df[ind, ]
+  }
+  return(df)
+}

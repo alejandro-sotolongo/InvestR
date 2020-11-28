@@ -68,7 +68,8 @@ viz_drawdown <- function(x, period = NULL) {
 }
 
 
-viz_roll_style <- function(fund, fact, roll_period = 504) {
+viz_roll_style <- function(fund, fact, period = 'month', roll_period = 36,
+                           .step = 1L) {
   
   dat <- roll_style_analysis(fund, fact, roll_period)
   df <- xts_to_dataframe(dat)
@@ -112,6 +113,45 @@ viz_style_drift <- function(fund, fact, period = 'week', roll_period = 156,
 
 
 #' @export
+viz_capm <- function(x) {
+  
+  ret <- geo_ret(x)
+  xvol <- vol(x)
+  df <- data.frame(Asset = colnames(x), Mu = ret, Sigma = xvol)
+  ggplot(df, aes(x = Sigma, y = Mu, color = Asset)) +
+    geom_point(size = 3) +
+    scale_x_continuous(labels = scales::percent) +
+    scale_y_continuous(labels = scales::percent) +
+    xlab('Volatility') + ylab('Geometric Return') +
+    theme_light()
+  
+}
+
+
+#' @export
+viz_pdf <- function(x, last_n = 5) {
+  
+  if (ncol(x) > 1) {
+    stop('x must be univariate')
+  }
+  x <- na.omit(x)
+  den <- density(as.numeric(x))
+  den_df <- data.frame(X = den$x, Y = den$y, Date = NA)
+  y_inter <- findInterval(tail(x, last_n), den$x)
+  last_n_df <- data.frame(X = tail(x, last_n), Y = den$y[y_inter],
+                          Date = zoo::index(x)[(nrow(x) - last_n + 1):nrow(x)])
+  colnames(last_n_df) <- c('X', 'Y', 'Date')
+  ggplot(den_df, aes(x = X, y = Y)) + 
+    geom_line() +
+    geom_point(aes(x = X, y = Y, color = Date), data = last_n_df, size = 3) +
+    scale_x_continuous(labels = scales::percent) +
+    xlab('Return') + ylab('Density') +
+    labs(color = 'Recent Returns') +
+    theme_light() 
+}
+
+
+#' @export
 tbl_cal_perf <- function(x, asof = NULL) {
   
   date_end <- zoo::index(x)[nrow(x)]
@@ -128,6 +168,7 @@ tbl_cal_perf <- function(x, asof = NULL) {
   is_before_date_start <- as.Date(as.numeric(date_vec), origin = '1970-01-01') < date_start
   xts_list <- mapply(trunc_xts, x = list(x), date_start = date_vec, 
                      date_end = asof)
+  # TO-DO error catch if returns don't end on same day
   xts_list_fill <- lapply(xts_list, fill_na_ret)
   perf <- sapply(xts_list_fill, cum_ret, remove_na = FALSE)
   perf[, 7] <- (1 + perf[, 7])^(1/3) - 1
@@ -142,7 +183,7 @@ tbl_cal_perf <- function(x, asof = NULL) {
   perf_out_sort <- perf_out[, c('Asset', toupper(xwin))]
   rownames(perf_out_sort) <- NULL
   perf_out_sort_fmt <- perf_out_sort
-  perf_out_sort_fmt[, 2:12] <- apply(perf_out_sort_fmt[, 2:12], 2, f_percent)
+  perf_out_sort_fmt[, 2:12] <- apply(perf_out_sort_fmt[, 2:12], 2, f_num_per)
   res <- list()
   res$fmt <- perf_out_sort_fmt
   res$num <- perf_out_sort
@@ -237,6 +278,32 @@ tbl_quantile <- function(x, probs = c(0.05, 0.25, 0.5, 0.75, 0.95)) {
   df[, c('Percentile', colnames(x))]
 }
 
+
+#' @export
+tbl_risk_quantile <- function(x, probs = seq(0.01, 0.05, by = 0.01),
+                              period = NULL, annualize = TRUE) {
+  
+  if (annualize) {
+    if (is.null(period)) {
+      period <- periodicity(x)$units
+    }
+    a <- freq_to_scaler(period)
+  } else {
+    a <- 1
+  }
+  q <- apply(x, 2, quantile, na.rm = TRUE, probs = probs)
+  avg <- colMeans(q)
+  num <- rbind(q, avg)
+  num <- apply(num, 2, function(x, a) {x * sqrt(a)}, a = a)
+  num_fmt <- apply(num, 2, f_percent)
+  fmt <- data.frame(Percentile = c(f_num(probs * 100, 0), 'Average'), num_fmt)
+  res <- list()
+  res$fmt <- fmt
+  res$num <- num
+  return(res)
+}
+
+
 #' @export
 tbl_mv_reg <- function(fund, fact, rf, period = NULL) {
   
@@ -287,6 +354,21 @@ kbl_mv_reg <- function(fund, fact, rf, period = NULL, t_stat_crit = 2) {
   kable_styling(kbl, latex_options = 'striped')
 }
 
+
+#' @export
+tbl_drawdowns <- function(fund, n_worst = 10) {
+  
+  tbl <- find_drawdowns(fund)
+  tbl <- tbl[order(tbl$Drawdown), ]
+  tbl <- tbl[1:n_worst, ]
+  num <- tbl
+  fmt <- tbl
+  fmt$Drawdown <- f_percent(fmt$Drawdown)
+  res <- list()
+  res$fmt <- fmt
+  res$num <- num
+  return(res)
+}
 
 #' @export
 f_percent <- function(x, digits = 2) {

@@ -14,8 +14,8 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE,
 library(InvestR)
 library(ggplot2)
 library(kableExtra)
-data(ETF)
-x <- na.omit(etf_ret[, 1:4])
+data("ExampleReport")
+fund_bench <- combine_xts(fund, bench)
 plot_col <- c('firebrick', 'dodgerblue', 'goldenrod', 'seagreen3')
 ```
 
@@ -24,7 +24,7 @@ plot_col <- c('firebrick', 'dodgerblue', 'goldenrod', 'seagreen3')
 # Performance Summary
 
 ```{r, fig.height=9, fig.width=7}
-viz_perf(x, plot_col = plot_col)
+viz_perf(fund_bench, plot_col = plot_col)
 ```
 
 \newpage
@@ -33,34 +33,123 @@ viz_perf(x, plot_col = plot_col)
 
 ## Periodic Returns
 
-Returns (periods greater than one year are annualized) as of `r zoo::index(x)[nrow(x)]`
+Returns as of `r zoo::index(fund_bench)[nrow(fund_bench)]` (periods greater 
+than one year are annualized)
 
 ```{r}
-cal_ret <- tbl_cal_perf(x)
-kbl <- kable(cal_ret$fmt)
-kable_styling(kbl, latex_options = 'striped')
+cal_ret <- tbl_cal_perf(fund_bench)
+kbl <- kable(cal_ret$fmt[, 1:10], align = rep('r', 10))
+kbl_in <- kable_styling(kbl, latex_options = 'striped')
+row_spec(kbl_in, 0, align = 'c', background = '#104E8B', color = 'white', bold = TRUE)
 ```
+
+\vspace{15pt}
 
 ## Calendar Returns
 
-Fund Ticker `r colnames(x)[1]`
+Fund Ticker `r colnames(fund)[1]`
 
 ```{r}
-mon_ret <- tbl_month_ret(x[, 1], dig = 2)
-kbl <- kable(mon_ret$fmt)
+mon_ret <- tbl_month_ret(fund, dig = 2)
+kbl <- kable(mon_ret$fmt, align = rep('r', 14))
 kbl_in <- kable_styling(kbl)
-column_spec(kbl_in, 14, bold = TRUE)
+kbl_in <- column_spec(kbl_in, 14, bold = TRUE)
+row_spec(kbl_in, 0, align = 'c', background = '#104E8B', color = 'white', bold = TRUE)
 ```
+
+\newpage
 
 ## Key Performance Metrics
 
-From `r zoo::index(x)[1]` to `r zoo::index(x)[nrow(x)]`
+From `r zoo::index(fund_bench)[1]` to `r zoo::index(fund_bench)[nrow(fund_bench)]`
 
 ```{r}
-res <- tbl_perf_stat(x[, 1], x[, 2:4], rf)
+res <- tbl_perf_stat(fund, bench, rf)
 kbl <- kable(res$fmt)
-kable_styling(kbl, latex_options = 'striped')
+kbl_in <- kable_styling(kbl, latex_options = 'striped')
+row_spec(kbl_in, 0, align = 'c', background = '#104E8B', color = 'white', bold = TRUE)
 ```
 
+\vspace{15pt}
+
+```{r, fig.width=7}
+viz_capm(fund_bench) +
+  scale_color_manual(values = plot_col) +
+  theme(legend.position = 'bottom')
+```
+
+# Risk
+
+## Drawdowns
+
+```{r}
+viz_drawdown(fund_bench, 'months') +
+  scale_color_manual(values = plot_col) +
+  theme(legend.position = 'bottom')
+viz_drawdown(fund, 'months') +
+  scale_color_manual(values = plot_col) +
+  theme(legend.position = 'bottom')
+```
+
+\newpage
+
+## `r colnames(fund)[1]` 10 Worst Drawdowns
+
+```{r}
+res <- tbl_drawdowns(fund)
+rownames(res$fmt) <- NULL
+kbl <- kable(res$fmt)
+kbl_in <- kable_styling(kbl, latex_options = 'striped')
+row_spec(kbl_in, 0, align = 'c', background = '#104E8B', color = 'white', bold = TRUE)
+```
+
+\vspace{15pt}
+
+## Historical Value at Risk (Annualized)
+
+```{r}
+res <- tbl_risk_quantile(fund_bench)
+kbl <- kable(res$fmt)
+kbl_in <- kable_styling(kbl, latex_options = 'striped')
+row_spec(kbl_in, 0, align = 'c', background = '#104E8B', color = 'white', bold = TRUE)
+```
+
+\newpage
+
+## Daily Kernel Density Estimation    
+
+```{r, fig.height=9, fig.width=9}
+viz_pdf(fund)
+```
+
+\newpage
+
+## Weekly Kernel Density Estimation
+
+```{r, fig.height=9, fig.width=9}
+x <- change_freq(fund, 'weeks')
+viz_pdf(x, 13)
+```
+
+\newpage
+
+## Monthly Kernel Density Estimation
+
+```{r, fig.height=9, fig.width=9}
+x <- change_freq(fund, 'months')
+viz_pdf(x, 12)
+```
+
+\newpage
+
+# Style
+
+## Large / Small and Value / Growth
+
+Weekly Rolling Analysis
+
+```{r}
+viz_style_drift(fund, style_ind)
+```
 
 
