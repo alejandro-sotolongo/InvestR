@@ -1,3 +1,39 @@
+#' @export
+viz_comp_2_ret <- function(x, period = NULL, plot_col = NULL) {
+  
+  if (ncol(x) != 2) {
+    stop('x must be two time-series organized by columns')
+  }
+  x <- na.omit(x)
+  if (!is.null(period)) {
+    x <- change_freq(x, period)
+  }
+  wealth <- ret_to_price(x)
+  df <- xts_to_dataframe(wealth)
+  delta <- x[, 1] - x[, 2]
+  plot_wealth <- tidyr::pivot_longer(df, -Date)
+  plot_wealth$name <- factor(plot_wealth$name, unique(plot_wealth$name))
+  g1 <- ggplot(plot_wealth, aes(x = Date, y = value, color = name)) +
+    geom_line() +
+    xlab('') + ylab('') + labs(color = '', title = 'Cumulative Return') +
+    theme_light()
+  if (!is.null(plot_col)) {
+    g1 <- g1 + scale_color_manual(values = plot_col)
+  } else {
+    g1 <- g1 + scale_color_manual(values = c('dodgerblue', 'darkgrey'))
+  }
+  df$Delta <- c(0, as.numeric(delta))
+  df$UpDown <- ifelse(df$Delta >= 0, 'Up', 'Down')
+  g2 <- ggplot(df[, c(1, 4:5)], aes(x = Date, y = Delta, fill = UpDown)) +
+    geom_bar(stat = 'identity', width = 8) +
+    scale_fill_manual(values = c('darkred', 'darkgreen')) +
+    scale_y_continuous(labels = scales::percent) +
+    xlab('') + labs(fill = '', title = 'Delta') + ylab('') + 
+    theme_light()
+  cowplot::plot_grid(g1, g2, ncol = 1, rel_heights = c(2, 1), align = 'v')
+}
+
+
 #' @title Plot Performance Summary
 #' @param x xts object
 #' @param period optional string to change the frequency of the xts
@@ -96,7 +132,7 @@ viz_style_drift <- function(fund, fact, period = 'week', roll_period = 156,
                        X = c(-1, -1, 1, 1),
                        Y = c(1, -1, 1, -1),
                        Date = rep(last_date), 4)
-  ggplot(plot_df, aes(x = X, y = Y, color = Date)) +
+  g1 <- ggplot(plot_df, aes(x = X, y = Y, color = Date)) +
     geom_point() +
     scale_x_continuous(minor_breaks = seq(-1, 1, 1),
                        limits = c(-1.5, 1.5)) +
@@ -108,7 +144,16 @@ viz_style_drift <- function(fund, fact, period = 'week', roll_period = 156,
     xlab('') + ylab('') +
     theme_light() +
     theme(panel.grid.minor = element_line(color = 'grey', size = 0.5))
-    
+  n_fact <- ncol(fact)
+  dat <- combine_xts(fund, fact, roll_wgt, period = period, use_busday = FALSE)
+  style_port <- rowSums(dat[, 2:(n_fact + 1)] * dat[, (n_fact + 2):ncol(dat)])
+  x <- cbind(dat[, 1], style_port)
+  colnames(x)[2] <- 'Style Portfolio'
+  g2 <- viz_comp_2_ret(x)
+  res <- list()
+  res$style_plot <- g1
+  res$comp_plot <- g2
+  return(res)
 }
 
 
@@ -148,6 +193,33 @@ viz_pdf <- function(x, last_n = 5) {
     xlab('Return') + ylab('Density') +
     labs(color = 'Recent Returns') +
     theme_light() 
+}
+
+
+#' @export
+viz_pdf_risk <- function(x) {
+  
+  if (ncol(x) > 1) {
+    stop('x must be univariate')
+  }
+  x <- na.omit(x)
+  den <- density(as.numeric(x))
+  den_df <- data.frame(X = den$x[den$x < 0], Y = den$y[den$x < 0])
+  q5 <- quantile(x, 0.05)
+  cvar <- mean(quantile(x, seq(0, 0.05, 0.01)))
+  y_1 <- max(den$y)
+  y_2 <- (max(den$y)) / 2
+  ggplot(den_df, aes(x = X, y = Y)) +
+    geom_line() +
+    scale_x_continuous(labels = scales::percent) +
+    xlab('Return') + ylab('Density') +
+    geom_vline(xintercept = q5, col = 'red') +
+    geom_vline(xintercept = cvar, col = 'brown') +
+    annotate('text', label = paste0('95 VaR ', f_percent(q5)),
+             x = q5, y = y_1, color = 'red', size = 3) +
+    annotate('text', label = paste0('95 cVaR: ', f_percent(cvar)),
+             x = cvar, y = y_2, color = 'brown', size = 3) +
+    theme_minimal()
 }
 
 

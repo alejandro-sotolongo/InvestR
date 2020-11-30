@@ -103,8 +103,6 @@ kbl_in <- kable_styling(kbl, latex_options = 'striped')
 row_spec(kbl_in, 0, align = 'c', background = '#104E8B', color = 'white', bold = TRUE)
 ```
 
-\vspace{15pt}
-
 ## Historical Value at Risk (Annualized)
 
 ```{r}
@@ -114,42 +112,22 @@ kbl_in <- kable_styling(kbl, latex_options = 'striped')
 row_spec(kbl_in, 0, align = 'c', background = '#104E8B', color = 'white', bold = TRUE)
 ```
 
-\newpage
+`r colnames(fund)[1]` Monthly Historical Value at Risk Plot
 
-## Daily Kernel Density Estimation    
-
-```{r, fig.height=9, fig.width=9}
-viz_pdf(fund)
-```
-
-\newpage
-
-## Weekly Kernel Density Estimation
-
-```{r, fig.height=9, fig.width=9}
-x <- change_freq(fund, 'weeks')
-viz_pdf(x, 13)
-```
-
-\newpage
-
-## Monthly Kernel Density Estimation
-
-```{r, fig.height=9, fig.width=9}
+```{r, fig.height=4}
 x <- change_freq(fund, 'months')
-viz_pdf(x, 12)
+viz_pdf_risk(x)
 ```
-
-\newpage
 
 # Style
 
-## Large / Small and Value / Growth
+Rolling Weekly Style Analysis
 
-Weekly Rolling Analysis
-
-```{r}
-viz_style_drift(fund, style_ind)
+```{r, fig.height=4}
+res <- viz_style_drift(fund, style_ind)
+res$style_plot
 ```
 
-
+```{r, fig.height=4}
+res$comp_plot
+```

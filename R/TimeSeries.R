@@ -375,3 +375,13 @@ trunc_df <- function(df, date_start = NULL, date_end = NULL) {
   }
   return(df)
 }
+
+
+#' @export
+na_col_filter <- function(x, eps = 5, na_rpl = 0) {
+  
+  na_per_col <- apply(x, 2, is.na)
+  x_filter <- x[, colSums(na_per_col) <= eps]
+  x_filter[is.na(x_filter)] <- 0
+  return(x_filter)
+}

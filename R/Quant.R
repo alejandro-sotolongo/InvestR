@@ -415,10 +415,11 @@ pca_cov <- function(cov_mat) {
 
 #' @export
 roll_style_analysis <- function(fund, fact, period = 'week', roll_period = 156, 
-                                .step = 1L) {
+                                .step = 1L, na_eps = 0) {
   
-  x <- combine_xts(fund, fact, period = period, use_busday = FALSE)
-  roll_list <- slider::slide(x, ~style_analysis(.x[, 1], .x[, 2:ncol(x)]),
+  x <- combine_xts(fund, fact, period = period, use_busday = FALSE, 
+                   comm_start = TRUE)
+  roll_list <- slider::slide(x, ~style_analysis(.x[, 1], .x[, 2:ncol(x)], na_eps),
                              .before = roll_period, .complete = TRUE, 
                              .step = .step)
   roll_mat <- do.call('rbind', roll_list) 
@@ -429,8 +430,9 @@ roll_style_analysis <- function(fund, fact, period = 'week', roll_period = 156,
 
 
 #' @export
-style_analysis <- function(fund, fact) {
+style_analysis <- function(fund, fact, na_eps = 0) {
   
+  #fact <- na_col_filter(fact, na_eps)
   res <- track_error_min_qp(fund, fact)
   res$solution
 }
