@@ -114,6 +114,7 @@ viz_drawdown <- function(x, period = NULL) {
 }
 
 
+#' @export
 viz_roll_style <- function(fund, fact, period = 'months', roll_period = 36, 
                            na_eps = 0) {
   
@@ -121,8 +122,10 @@ viz_roll_style <- function(fund, fact, period = 'months', roll_period = 36,
   df <- xts_to_dataframe(dat)
   plot_dat <- tidyr::pivot_longer(df, -Date)
   ggplot(plot_dat, aes(x = Date, y = value, fill = name)) +
-    geom_area()
-  
+    geom_area() +
+    scale_y_continuous(labels = scales::percent) +
+    labs(fill = '') + xlab('') + ylab('') +
+    theme_light()
 }
 
 
@@ -182,7 +185,7 @@ viz_style <- function(fund, fact) {
     geom_col() +
     scale_x_discrete(limits = rev(df$Style)) +
     coord_flip() +
-    xlab('') +
+    xlab('') + 
     scale_y_continuous(labels = scales::percent) +
     theme_light()
 }
@@ -325,6 +328,7 @@ tbl_month_ret <- function(x, dig = 2) {
   res$num <- tbl
   return(res)
 }
+
 
 #' @export
 tbl_perf_stat <- function(fund, comp, rf, period = NULL) {

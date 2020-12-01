@@ -78,9 +78,7 @@ viz_capm(fund_bench) +
   theme(legend.position = 'bottom')
 ```
 
-# Risk
-
-## Drawdowns
+# Drawdowns and Value at Risk
 
 ```{r}
 viz_drawdown(fund_bench, 'months') +
@@ -144,5 +142,20 @@ viz_style(fund, fact) + xlab('')
 
 \newpage
 
-## Sector Style
+## Sector Style 
+
+ETF Returns to Proxy Sectors - Rolling 36 Months
+
+```{r, fig.height=4.5}
+viz_roll_style(fund, sector, 'month', 36) +
+  scale_fill_manual(values = c('dodgerblue', 'goldenrod', 'brown', 'seagreen', 
+                                'darkgreen', 'purple2', 'darkorange', 'darkgrey',
+                                'navy', 'violet', 'turquoise2'))
+```
+
+Single Period Estimation from `r zoo::index(sector)[1]` to `r zoo::index(sector)[nrow(sector)]`
+
+```{r, fig.height=3.5}
+viz_style(fund, sector)
+```
 
