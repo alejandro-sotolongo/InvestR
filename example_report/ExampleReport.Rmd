@@ -123,11 +123,26 @@ viz_pdf_risk(x)
 
 Rolling Weekly Style Analysis
 
-```{r, fig.height=4}
-res <- viz_style_drift(fund, style_ind)
+```{r, fig.height=4.5}
+res <- viz_style_drift(fund, style_ind, comp_plot = TRUE)
 res$style_plot
 ```
 
-```{r, fig.height=4}
+`r colnames(fund)[1]` Compared to Rolling Style Portfolio
+
+```{r, fig.height=3.5}
 res$comp_plot
 ```
+
+Style Weights
+
+```{r}
+fact <- style_ind
+colnames(fact) <- c('Large Growth', 'Small Growth', 'Large Value', 'Small Value')
+viz_style(fund, fact) + xlab('')
+```
+
+\newpage
+
+## Sector Style
+

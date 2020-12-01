@@ -1,9 +1,11 @@
 #' @export
-viz_comp_2_ret <- function(x, period = NULL, plot_col = NULL) {
+viz_comp_2_ret <- function(x, period = NULL, plot_col = NULL, 
+                           plot_delta = c('line', 'bar'), title = '') {
   
   if (ncol(x) != 2) {
     stop('x must be two time-series organized by columns')
   }
+  plot_delta <- tolower(plot_delta[1])
   x <- na.omit(x)
   if (!is.null(period)) {
     x <- change_freq(x, period)
@@ -15,7 +17,7 @@ viz_comp_2_ret <- function(x, period = NULL, plot_col = NULL) {
   plot_wealth$name <- factor(plot_wealth$name, unique(plot_wealth$name))
   g1 <- ggplot(plot_wealth, aes(x = Date, y = value, color = name)) +
     geom_line() +
-    xlab('') + ylab('') + labs(color = '', title = 'Cumulative Return') +
+    xlab('') + ylab('') + labs(color = '', title = title) +
     theme_light()
   if (!is.null(plot_col)) {
     g1 <- g1 + scale_color_manual(values = plot_col)
@@ -23,13 +25,21 @@ viz_comp_2_ret <- function(x, period = NULL, plot_col = NULL) {
     g1 <- g1 + scale_color_manual(values = c('dodgerblue', 'darkgrey'))
   }
   df$Delta <- c(0, as.numeric(delta))
+  df$CumDelta <- cumprod(1 + df$Delta) - 1
   df$UpDown <- ifelse(df$Delta >= 0, 'Up', 'Down')
-  g2 <- ggplot(df[, c(1, 4:5)], aes(x = Date, y = Delta, fill = UpDown)) +
-    geom_bar(stat = 'identity', width = 8) +
-    scale_fill_manual(values = c('darkred', 'darkgreen')) +
-    scale_y_continuous(labels = scales::percent) +
-    xlab('') + labs(fill = '', title = 'Delta') + ylab('') + 
-    theme_light()
+  if (plot_delta == 'bar') {
+    g2 <- ggplot(df[, c(1, 4:5)], aes(x = Date, y = Delta, fill = UpDown)) +
+      geom_bar(stat = 'identity', width = 8) +
+      scale_fill_manual(values = c('darkred', 'darkgreen')) +
+      scale_y_continuous(labels = scales::percent) +
+      xlab('') + labs(fill = '') + ylab('') + 
+      theme_light()
+  } else {
+    g2 <- ggplot(df, aes(x = Date, y = CumDelta, fill = 'Delta')) +
+      geom_area() +
+      xlab('') + labs(fill = '') + ylab('') + 
+      theme_light()
+  }
   cowplot::plot_grid(g1, g2, ncol = 1, rel_heights = c(2, 1), align = 'v')
 }
 
@@ -104,10 +114,10 @@ viz_drawdown <- function(x, period = NULL) {
 }
 
 
-viz_roll_style <- function(fund, fact, period = 'month', roll_period = 36,
-                           .step = 1L) {
+viz_roll_style <- function(fund, fact, period = 'months', roll_period = 36, 
+                           na_eps = 0) {
   
-  dat <- roll_style_analysis(fund, fact, roll_period)
+  dat <- roll_style_analysis_with_na(fund, fact, period, roll_period, na_eps)
   df <- xts_to_dataframe(dat)
   plot_dat <- tidyr::pivot_longer(df, -Date)
   ggplot(plot_dat, aes(x = Date, y = value, fill = name)) +
@@ -118,7 +128,7 @@ viz_roll_style <- function(fund, fact, period = 'month', roll_period = 36,
 
 #' @export
 viz_style_drift <- function(fund, fact, period = 'week', roll_period = 156,
-                            .step = 1L) {
+                            .step = 1L, comp_plot = FALSE) {
   
   roll_wgt <- roll_style_analysis(fund, fact, period, roll_period, .step)
   y_point <- roll_wgt[, 1] + roll_wgt[, 3] - roll_wgt[, 2] - roll_wgt[, 4]
@@ -144,16 +154,37 @@ viz_style_drift <- function(fund, fact, period = 'week', roll_period = 156,
     xlab('') + ylab('') +
     theme_light() +
     theme(panel.grid.minor = element_line(color = 'grey', size = 0.5))
-  n_fact <- ncol(fact)
-  dat <- combine_xts(fund, fact, roll_wgt, period = period, use_busday = FALSE)
-  style_port <- rowSums(dat[, 2:(n_fact + 1)] * dat[, (n_fact + 2):ncol(dat)])
-  x <- cbind(dat[, 1], style_port)
-  colnames(x)[2] <- 'Style Portfolio'
-  g2 <- viz_comp_2_ret(x)
-  res <- list()
-  res$style_plot <- g1
-  res$comp_plot <- g2
-  return(res)
+  if (comp_plot) {
+    n_fact <- ncol(fact)
+    dat <- combine_xts(fund, fact, roll_wgt, period = period, use_busday = FALSE)
+    style_port <- rowSums(dat[, 2:(n_fact + 1)] * dat[, (n_fact + 2):ncol(dat)])
+    x <- cbind(dat[, 1], style_port)
+    colnames(x)[2] <- 'Style Portfolio'
+    g2 <- viz_comp_2_ret(x)
+    res <- list()
+    res$style_plot <- g1
+    res$comp_plot <- g2
+    return(res)
+  } else {
+    return(g1)
+  }
+}
+
+
+#' @export
+viz_style <- function(fund, fact) {
+  
+  x <- combine_xts(fund, fact, use_busday = FALSE)
+  wgt <- style_analysis(x[, 1], x[, 2:ncol(x)])
+  df <- data.frame(Style = colnames(fact), Weight = wgt)
+  df$Style <- as.factor(df$Style)
+  ggplot(df, aes(x = Style, y = Weight)) +
+    geom_col() +
+    scale_x_discrete(limits = rev(df$Style)) +
+    coord_flip() +
+    xlab('') +
+    scale_y_continuous(labels = scales::percent) +
+    theme_light()
 }
 
 

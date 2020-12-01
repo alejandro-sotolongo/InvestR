@@ -415,11 +415,10 @@ pca_cov <- function(cov_mat) {
 
 #' @export
 roll_style_analysis <- function(fund, fact, period = 'week', roll_period = 156, 
-                                .step = 1L, na_eps = 0) {
+                                .step = 1L) {
   
-  x <- combine_xts(fund, fact, period = period, use_busday = FALSE, 
-                   comm_start = TRUE)
-  roll_list <- slider::slide(x, ~style_analysis(.x[, 1], .x[, 2:ncol(x)], na_eps),
+  x <- combine_xts(fund, fact, period = period, use_busday = FALSE)
+  roll_list <- slider::slide(x, ~style_analysis(.x[, 1], .x[, 2:ncol(x)]),
                              .before = roll_period, .complete = TRUE, 
                              .step = .step)
   roll_mat <- do.call('rbind', roll_list) 
@@ -430,9 +429,32 @@ roll_style_analysis <- function(fund, fact, period = 'week', roll_period = 156,
 
 
 #' @export
-style_analysis <- function(fund, fact, na_eps = 0) {
+roll_style_analysis_with_na <- function(fund, fact, period = 'week',
+                                        roll_period = 156, na_eps = 0) {
   
-  #fact <- na_col_filter(fact, na_eps)
+  x <- cbind(fund, fact)
+  date_start <- max(zoo::index(fund)[1], zoo::index(fact)[1])
+  date_end <- min(zoo::index(fund)[nrow(fund)], zoo::index(fund)[nrow(fund)])
+  x_trunc <- trunc_xts(x, date_start, date_end)
+  ret <- change_freq_na(x_trunc, period, 'return')
+  res <- matrix(nrow = nrow(ret), ncol = ncol(fact))
+  for (i in roll_period:nrow(ret)) {
+    roll_ret <- ret[(i - roll_period + 1):i, ]
+    na_per_col <- apply(roll_ret, 2, is.na)
+    is_na_col <- colSums(na_per_col) > na_eps
+    roll_ret_clean <- roll_ret[, !is_na_col]
+    roll_ret_clean[is.na(roll_ret_clean)] <- 0
+    wgt <- style_analysis(roll_ret_clean[, 1], roll_ret_clean[, 2:ncol(roll_ret_clean)])
+    res[i, !is_na_col[2:ncol(roll_ret)]] <- wgt
+  }
+  wgt_xts <- xts(res, as.Date(zoo::index(ret)))
+  colnames(wgt_xts) <- colnames(fact)
+  return(wgt_xts)
+}
+
+#' @export
+style_analysis <- function(fund, fact) {
+  
   res <- track_error_min_qp(fund, fact)
   res$solution
 }
