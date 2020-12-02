@@ -208,6 +208,25 @@ viz_capm <- function(x) {
 
 
 #' @export
+viz_ret_worst_dd <- function(x, text_size = 4) {
+  
+  ret <- geo_ret(x)
+  dd <- drawdown(x)
+  worst_dd <- -apply(dd, 2, min)
+  df <- data.frame(Asset = colnames(x), Return = ret, Risk = worst_dd)
+  ggplot(df, aes(x = Risk, y = Return, color = Asset, label = Asset)) +
+    geom_point(size = 3) +
+    geom_smooth() +
+    ggrepel::geom_text_repel(size = text_size) +
+    ylab('Geo. Return') + xlab('Worst Drawdown') +
+    scale_y_continuous(labels = scales::percent) +
+    scale_x_continuous(labels = scales::percent) +
+    theme_light() +
+    theme(legend.position = 'none')
+}
+
+
+#' @export
 viz_pdf <- function(x, last_n = 5) {
   
   if (ncol(x) > 1) {
@@ -288,6 +307,43 @@ viz_dendro <- function(x) {
   xcorr <- cor(x, use = 'pairwise')
   hc <- pca_hclust(xcorr)
   plot(hc, hang = -1)
+}
+
+
+#' @export
+viz_pca <- function(x, n_pc = 4) {
+  
+  xcorr <- cor(x, use = 'pairwise')
+  p <- princomp(xcorr, cor = TRUE)
+  p_loadings <- data.frame(p$loadings[, 1:n_pc])
+  p_loadings$Asset <- factor(rownames(p_loadings), rev(rownames(p_loadings)))
+  tidy_dat <- tidyr::pivot_longer(p_loadings, -Asset, values_to = 'values',
+                                  names_to = 'series')
+  chart_loadings <- ggplot(tidy_dat, aes(x = Asset, y = values, fill = Asset)) +
+    geom_bar(stat = 'identity', position = 'dodge') +
+    coord_flip() +
+    facet_wrap(. ~ series) +
+    scale_fill_manual(values = c(rep('darkgrey', ncol(x) - 1), 'indianred3')) +
+    ylab('') + xlab('') +
+    theme_light() +
+    theme(legend.position = 'none')
+  var_expl <- p$sdev[1:n_pc]^2 / sum(p$sdev^2)
+  cum_var_expl <- data.frame(PC = c(paste0('PC ', 1:n_pc), 'Unexplained'),
+                             var = c(var_expl, 1 - sum(var_expl)))
+  cum_var_expl$PC <- as.factor(cum_var_expl$PC)
+  chart_var_expl <- ggplot(cum_var_expl, aes(x = PC, y = var, fill = PC)) +
+    geom_bar(stat = 'identity', position = 'dodge') +
+    scale_x_discrete(limits = rev(cum_var_expl$PC)) +
+    coord_flip() +
+    ylab('Variance Explained') +
+    scale_y_continuous(labels = scales::percent) +
+    xlab('') +
+    theme_light() +
+    theme(legend.position = 'none')
+  res <- list()
+  res$loadings <- chart_loadings
+  res$var_expl <- chart_var_expl
+  return(res)
 }
 
 #' @export

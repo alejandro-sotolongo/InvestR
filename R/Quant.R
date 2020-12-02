@@ -389,12 +389,14 @@ ewma_cov <- function(ret, lambda = NULL) {
   return(cov_mat)
 }
 
+
 #' @export
 zscore_win <- function(x, short_win) {
   t0 <- length(x)
   t_short <- t0 - short_win - 1
   (mean(x[t0:t_short]) - mean(x)) / sd(x)
 }
+
 
 #' @export
 pca_cov <- function(cov_mat) {
@@ -452,6 +454,7 @@ roll_style_analysis_with_na <- function(fund, fact, period = 'week',
   return(wgt_xts)
 }
 
+
 #' @export
 style_analysis <- function(fund, fact) {
   
@@ -486,3 +489,5 @@ test_track_error <- function(fund, fact, res) {
   t_ind <- fund - c_part 
   return(t_ind)
 }
+
+

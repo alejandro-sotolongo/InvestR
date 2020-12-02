@@ -172,5 +172,13 @@ viz_corr(fund_market, 2)
 viz_dendro(fund_market)
 ```
 
+## PCA
 
+```{r, fig.height=5}
+res <- viz_pca(fund_market)
+res$loadings
+```
 
+```{r, fig.height=3}
+res$var_expl
+```
