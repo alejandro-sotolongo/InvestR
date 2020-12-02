@@ -258,6 +258,39 @@ viz_pdf_risk <- function(x) {
 
 
 #' @export
+viz_corr <- function(x, text_size = 3) {
+  
+  n_assets <- ncol(x)
+  n_rep_letter <- n_assets %/% 26 + 1
+  letter_lbl <- rep(LETTERS, n_rep_letter)
+  letter_lbl <- letter_lbl[1:n_assets]
+  xcorr <- cor(x, use = 'pairwise')
+  rownames(xcorr) <- letter_lbl
+  colnames(xcorr) <- paste0(colnames(xcorr), ' - ', letter_lbl)
+  df <- reshape2::melt(xcorr)
+  df$Var2 <- as.factor(df$Var2)
+  df$lab <- f_num(df$value)
+  ggplot(df, aes(x = Var1, y = Var2, fill = value, label = lab)) +
+    geom_tile() +
+    scale_y_discrete(limits = unique(rev(df$Var2))) +
+    scale_fill_gradient2(low = 'blue', mid = 'white', high = 'red') +
+    geom_text(size = text_size) +
+    xlab('') + ylab('') +
+    scale_x_discrete(position = 'top') +
+    theme_minimal() +
+    theme(legend.position = 'none')
+}
+
+
+#' @export
+viz_dendro <- function(x) {
+  
+  xcorr <- cor(x, use = 'pairwise')
+  hc <- pca_hclust(xcorr)
+  plot(hc, hang = -1)
+}
+
+#' @export
 tbl_cal_perf <- function(x, asof = NULL) {
   
   date_end <- zoo::index(x)[nrow(x)]

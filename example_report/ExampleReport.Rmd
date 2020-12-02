@@ -16,6 +16,7 @@ library(ggplot2)
 library(kableExtra)
 data("ExampleReport")
 fund_bench <- combine_xts(fund, bench)
+fund_market <- combine_xts(fund, bench, etf_ret)
 plot_col <- c('firebrick', 'dodgerblue', 'goldenrod', 'seagreen3')
 ```
 
@@ -158,4 +159,18 @@ Single Period Estimation from `r zoo::index(sector)[1]` to `r zoo::index(sector)
 ```{r, fig.height=3.5}
 viz_style(fund, sector)
 ```
+
+# Correlation
+
+```{r}
+viz_corr(fund_market, 2)
+```
+
+\newpage
+
+```{r, fig.height=10}
+viz_dendro(fund_market)
+```
+
+
 
