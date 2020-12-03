@@ -313,8 +313,7 @@ viz_dendro <- function(x) {
 #' @export
 viz_pca <- function(x, n_pc = 4) {
   
-  xcorr <- cor(x, use = 'pairwise')
-  p <- princomp(xcorr, cor = TRUE)
+  p <- psych::pca(x, n_pc)
   p_loadings <- data.frame(p$loadings[, 1:n_pc])
   p_loadings$Asset <- factor(rownames(p_loadings), rev(rownames(p_loadings)))
   tidy_dat <- tidyr::pivot_longer(p_loadings, -Asset, values_to = 'values',
@@ -327,17 +326,19 @@ viz_pca <- function(x, n_pc = 4) {
     ylab('') + xlab('') +
     theme_light() +
     theme(legend.position = 'none')
-  var_expl <- p$sdev[1:n_pc]^2 / sum(p$sdev^2)
-  cum_var_expl <- data.frame(PC = c(paste0('PC ', 1:n_pc), 'Unexplained'),
+  var_expl <- p$values[1:n_pc] / sum(p$values)
+  cum_var_expl <- data.frame(PC = c(paste0('PC ', 1:n_pc), 'Remaining Components'),
                              var = c(var_expl, 1 - sum(var_expl)))
+  cum_var_expl$lbl <- f_percent(cum_var_expl$var)
   cum_var_expl$PC <- as.factor(cum_var_expl$PC)
-  chart_var_expl <- ggplot(cum_var_expl, aes(x = PC, y = var, fill = PC)) +
+  chart_var_expl <- ggplot(cum_var_expl, aes(x = PC, y = var, fill = PC, label = lbl)) +
     geom_bar(stat = 'identity', position = 'dodge') +
     scale_x_discrete(limits = rev(cum_var_expl$PC)) +
     coord_flip() +
     ylab('Variance Explained') +
     scale_y_continuous(labels = scales::percent) +
     xlab('') +
+    geom_text() +
     theme_light() +
     theme(legend.position = 'none')
   res <- list()
@@ -345,6 +346,7 @@ viz_pca <- function(x, n_pc = 4) {
   res$var_expl <- chart_var_expl
   return(res)
 }
+
 
 #' @export
 tbl_cal_perf <- function(x, asof = NULL) {
