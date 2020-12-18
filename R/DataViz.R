@@ -503,13 +503,14 @@ tbl_risk_quantile <- function(x, probs = seq(0.01, 0.05, by = 0.01),
 
 
 #' @export
-tbl_mv_reg <- function(fund, fact, rf, period = NULL) {
+tbl_mv_reg <- function(fund, fact, rf, period = NULL, net_rf_y = TRUE,
+                       net_rf_x = TRUE) {
   
   if (is.null(period)) {
     period <- periodicity(fund)$units
   }
   a <- freq_to_scaler(period)
-  fit <- mv_reg(fund, fact, rf, period)
+  fit <- mv_reg(fund, fact, rf, period, net_rf_y, net_rf_x)
   tbl_num <- matrix(nrow = ncol(fact) + 3, ncol = ncol(fund))
   coeff <- sapply(fit, '[[', 'coefficients')
   fit_summ <- lapply(fit, function(x) {summary(x)})
@@ -538,9 +539,10 @@ tbl_mv_reg <- function(fund, fact, rf, period = NULL) {
 
 
 #' @export
-kbl_mv_reg <- function(fund, fact, rf, period = NULL, t_stat_crit = 2) {
+kbl_mv_reg <- function(fund, fact, rf, period = NULL, net_rf_y = TRUE,
+                       net_rf_x = TRUE, t_stat_crit = 2) {
   
-  tbl_list <- tbl_mv_reg(fund, fact, rf, period)
+  tbl_list <- tbl_mv_reg(fund, fact, rf, period, net_rf_y, net_rf_x)
   t_stat <- sapply(tbl_list$fit_summ, function(x){x$coefficients[, 3]})
   tbl <- tbl_list$fmt
   for (i in 2:ncol(tbl)) {

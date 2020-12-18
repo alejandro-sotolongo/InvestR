@@ -156,7 +156,8 @@ omega_ratio <- function(x, mar = 0, method = c('weight', 'standard'),
 
 
 #' @export
-mv_reg <- function(fund, fact, rf, period = NULL) {
+mv_reg <- function(fund, fact, rf, period = NULL, net_rf_y = TRUE, 
+                   net_rf_x = TRUE) {
   
   n_funds <- ncol(fund)
   n_facts <- ncol(fact)
@@ -164,8 +165,16 @@ mv_reg <- function(fund, fact, rf, period = NULL) {
     stop('rf must be 1 time-series')
   }
   x <- combine_xts(fund, fact, rf, period = period)
-  fund_exc <- excess_ret(x[, 1:n_funds], x[, ncol(x)])
-  fact_exc <- excess_ret(x[, (n_funds + 1):(ncol(x) - 1)], x[, ncol(x)])
+  if (net_rf_y) {
+    fund_exc <- excess_ret(x[, 1:n_funds], x[, ncol(x)])
+  } else {
+    fund_exc <- x[, 1:n_funds]
+  }
+  if (net_rf_x) {
+    fact_exc <- excess_ret(x[, (n_funds + 1):(ncol(x) - 1)], x[, ncol(x)])
+  } else {
+    fact_exc <- x[, (n_funds + 1):(ncol(x) - 1)]
+  }
   fit <- list()
   for (i in 1:n_funds) {
     fit[[i]] <- lm(fund_exc[, i] ~ fact_exc)

@@ -185,3 +185,15 @@ res$loadings
 res$var_expl
 ```
 
+\newpage
+
+# Factor Analysis
+
+Fama-French 3 Factor Plus Momentum (Weekly)
+
+```{r}
+kbl_mv_reg(fund_bench, ff, rf, 'weeks', net_rf_x = FALSE)
+```
+
+
+
