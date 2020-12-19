@@ -125,6 +125,7 @@ download_french_rf <- function(skip = 4) {
   xts(dat[, 2], as.Date(dat[, 1]))
 }
 
+
 download_shiller <- function() {
   
   tmp <- tempfile()
@@ -151,4 +152,43 @@ download_shiller <- function() {
   dat$CAPE <- as.numeric(dat$CAPE)
   dat$`TR CAPE` <- as.numeric(dat$`TR CAPE`)
   res <- xts(dat[, 2:ncol(dat)], dat[[1]])
+}
+
+
+download_russell <- function(key_link) {
+  
+  data_url <- paste0('https://research.ftserussell.com/products/russell-index-values/home/getfile?id=valueshist_',
+                     key_link, '.csv')
+  tmp <- tempfile()
+  curl::curl_download(data_url, tmp)  
+  dat <- read.csv(tmp)
+  price <- xts(dat[, 4], as.Date(dat[, 2], format = '%m/%d/%Y'))
+  ret <- price_to_ret(price)
+  colnames(ret) <- iconv(dat[1, 1], from = 'UTF-8', to = 'ASCII//TRANSLIT')
+  return(ret)
+}
+
+
+read_research_affiliates <- function(workbook) {
+  
+  exp_ret <- readxl::read_excel(workbook, 2, range = 'B4:L48')
+  exp_ret_all <- readxl::read_excel(workbook, 3, range = 'B4:L121')
+  hist_ret <- readxl::read_excel(workbook, 4, range = 'B5:L48')
+  exp_corr <- readxl::read_excel(workbook, 5, range = 'B4:AC31')
+  exp_cov <- readxl::read_excel(workbook, 5, range = 'B35:AC62')
+  port_wgt <- readxl::read_excel(workbook, 6, range = 'B4:AC21')
+  cape <- readxl::read_excel(workbook, 7, range = 'B4:M36')
+  yield <- readxl::read_excel(workbook, 8, range = 'B4:R25')
+  growth <- readxl::read_excel(workbook, 9, range = 'B4:E26')
+  res <- list()
+  res$exp_ret <- exp_ret
+  res$exp_ret_all <- exp_ret_all
+  res$hist_ret <- hist_ret
+  res$exp_corr <- exp_corr
+  res$exp_cov <- exp_cov
+  res$port_wgt <- port_wgt
+  res$cape <- cape
+  res$yield <- yield
+  res$growth <- growth
+  return(res)
 }
