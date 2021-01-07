@@ -208,6 +208,74 @@ viz_capm <- function(x) {
 
 
 #' @export
+viz_capm_period <- function(x, scenario = NULL, period = NULL) {
+  
+  x <- na.omit(x)
+  if (is.null(scenario)) {
+    scenario <- default_equity_scenario()
+  }
+  df <- data.frame(asset = NA, mu = NA, sigma = NA, date = NA)
+  j <- 1
+  for (i in 1:nrow(scenario)) {
+    period_ret <- trunc_xts(x, date_start = scenario[i, 1], 
+                            date_end = scenario[i, 2])
+    if (length(period_ret) > 0) {
+      df[j:(j + ncol(x) - 1), 'asset'] = colnames(x)
+      if (scenario[i, 2] - scenario[i, 1] > 364) {
+        mu <- geo_ret(period_ret) 
+      } else {
+        mu <- apply(period_ret + 1, 2, prod, na.rm = TRUE) - 1
+      }
+      df[j:(j + ncol(x) - 1), 'mu'] <- mu
+      df[j:(j + ncol(x) - 1), 'sigma'] <- vol(x)
+      df[j:(j + ncol(x) - 1), 'date'] <- rep(paste0(format(scenario[i, 1], '%b %Y'), ' to ', 
+                            format(scenario[i, 2], '%b %Y')), ncol(x))
+      j <- j + ncol(x)
+    }
+  }
+  df$date <- factor(df$date, unique(df$date))
+  df$asset <- factor(df$asset, unique(df$asset))
+  ggplot(df, aes(x = sigma, y = mu, col = asset)) +
+    geom_point() +
+    facet_wrap(.~ date, scales = 'free') +
+    scale_x_continuous(labels = scales::percent) +
+    scale_y_continuous(labels = scales::percent) +
+    labs(title = 'Risk / Return', 
+         subtitle = 'Returns for periods less than one year are not annualized')
+}
+
+
+#' @export
+default_equity_scenario <- function() {
+  
+  start_dt <- c('1998-08-31',
+                '2000-03-27',
+                '2002-10-10',
+                '2007-10-10',
+                '2009-03-10',
+                '2015-07-21',
+                '2016-02-12',
+                '2018-09-21',
+                '2018-12-25',
+                '2020-02-20',
+                '2020-03-24')
+  end_dt <- c('2000-03-26',
+              '2002-10-09',
+              '2007-10-09',
+              '2009-03-09',
+              '2015-07-20',
+              '2016-02-11',
+              '2018-09-20',
+              '2018-12-24',
+              '2020-02-19',
+              '2020-03-23')
+  res <- data.frame(start = as.Date(start_dt),
+                    end = c(as.Date(end_dt), Sys.Date()))
+  return(res)
+}
+
+
+#' @export
 viz_ret_worst_dd <- function(x, text_size = 4) {
   
   ret <- geo_ret(x)
@@ -345,6 +413,39 @@ viz_pca <- function(x, n_pc = 4) {
   res$loadings <- chart_loadings
   res$var_expl <- chart_var_expl
   return(res)
+}
+
+
+#' @export
+viz_factor_ret <- function(fund, fact, rf, period = NULL, net_rf_y = TRUE, 
+                           net_rf_x = TRUE) {
+  
+  if (is.null(period)) {
+    period <- periodicity(fund)$units
+  }
+  fit <- mv_reg(fund, fact, rf, period, net_rf_y, net_rf_x)
+  model <- fit[[1]]$model
+  ret <- geo_ret(model, period = period)
+  coeff <- c(NA, fit[[1]]$coefficients)
+  coeff[2] <- coeff[2] * freq_to_scaler(period)
+  contr <- c(ret[1], coeff[2], coeff[3:length(coeff)] * ret[2:length(ret)])
+  df <- data.frame(Name = c(colnames(fund), 'Resid.', colnames(fact)),
+                   Coeff = coeff,
+                   Return = c(ret[1], coeff[2], ret[2:length(ret)]),
+                   Contr.to.Ret = contr)
+  tidy_df <- tidyr::pivot_longer(df, -Name, names_to = 'Series', 
+                                 values_to = 'Estimate')
+  tidy_df$Series <- factor(tidy_df$Series, unique(tidy_df$Series))
+  tidy_df$Name <- factor(tidy_df$Name, unique(tidy_df$Name)) 
+  ggplot(tidy_df, aes(x = Name, y = Estimate, fill = Name)) + 
+    geom_bar(stat = 'identity') +
+    facet_wrap(.~ Series, scales = 'free') +
+    scale_x_discrete(limits = rev(unique(tidy_df$Name))) + 
+    scale_fill_manual(values = c('gainsboro', rep('grey36', nrow(df) - 1))) +
+    coord_flip() +
+    labs(Name = '') + xlab('') + ylab('') +
+    theme_light() +
+    theme(legend.position = 'none')
 }
 
 

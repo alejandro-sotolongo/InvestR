@@ -484,7 +484,7 @@ track_error_min_qp <- function(fund, fact) {
   a_mat_t <- rbind(rep(1, n_fact), diag(-1, n_fact), diag(1, n_fact))
   a_mat <- t(a_mat_t)
   b_0 <- c(1, rep(-1, n_fact), rep(0, n_fact))
-  res <- quadprog::solve.QP(cov_fact, cov_vec, a_mat, bvec = b_0)
+  res <- quadprog::solve.QP(cov_fact, cov_vec, a_mat, bvec = b_0, meq = 1)
   return(res)
 }
 
@@ -500,3 +500,7 @@ test_track_error <- function(fund, fact, res) {
 }
 
 
+forecast_ra <- function(ra) {
+  
+  
+}
